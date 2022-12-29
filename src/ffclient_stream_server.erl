@@ -16,6 +16,7 @@ start_link() ->
 
 init(Args) ->
   logger:info("Streaming for changes"),
+  cfapi_client_api:stream(),
   erlang:error(not_implemented).
 
 handle_call(Request, From, State) ->
