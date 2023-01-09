@@ -6,8 +6,10 @@
   {applications,
    [kernel,
     stdlib,
+    ssl,
     cfapi,
-    lru
+    lru,
+    gun
    ]},
   {env,[]},
   {modules, []},
