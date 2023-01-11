@@ -46,6 +46,7 @@ connect(ApiKey) ->
   case cfapi_client_api:authenticate(ctx:new(), Opts) of
     {ok, ResponseBody, _} ->
       AuthToken = maps:get('authToken', ResponseBody),
+      %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
       application:set_env(cfclient, authtoken, AuthToken),
       {ok, AuthToken};
     {error, Response, _} ->
@@ -56,6 +57,7 @@ connect(ApiKey) ->
 
 -spec get_authtoken() -> string() | {error, authtoken_not_found, term()}.
 get_authtoken() ->
+  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
   {ok, AuthToken} = application:get_env(cfclient, authtoken),
   binary_to_list(AuthToken).
 
@@ -65,10 +67,12 @@ parse_project_data(JwtToken) ->
   DecodedJwt = base64url:decode(JwtString),
   UnicodeJwt = unicode:characters_to_binary(DecodedJwt, utf8),
   Project = jsx:decode(string:trim(UnicodeJwt)),
+  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
   application:set_env(cfclient, project, Project).
 
 -spec get_project_value(Key :: string()) -> string() | {error, key_not_found, term()}.
 get_project_value(Key) ->
+  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
   {ok, Project} = application:get_env(cfclient, project),
   Value = maps:get(list_to_binary(Key), Project),
   binary_to_list(Value).
@@ -77,6 +81,7 @@ get_project_value(Key) ->
 stop() ->
   logger:debug("Stopping client"),
   stop_children(supervisor:which_children(?PARENTSUP)),
+  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
   unset_application_environment(application:get_all_env(cfclient)).
 
 %% Internal functions
@@ -111,6 +116,7 @@ stop_children([]) -> ok.
 
 -spec unset_application_environment(CfClientEnvironmentVariables :: list()) -> ok.
 unset_application_environment([{Key, _} | Tail]) ->
+  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
   application:unset_env(cfclient, Key),
   unset_application_environment(Tail);
 unset_application_environment([]) -> ok.

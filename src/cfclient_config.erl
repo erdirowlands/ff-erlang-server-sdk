@@ -23,6 +23,7 @@
 -spec init(ApiKey :: string(), Opts :: map()) -> ok.
 init(ApiKey, Opts) when is_list(ApiKey), is_map(Opts) ->
     Config = parse_options(ApiKey, Opts),
+    %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
     application:set_env(cfclient, config, Config).
 
 -spec parse_options(ApiKey :: string(), Opts :: map()) -> map().
@@ -53,6 +54,7 @@ parse_options(ApiKey, Opts) when is_list(ApiKey), is_map(Opts) ->
 get_value(Key) when is_list(Key) ->
     get_value(list_to_atom(Key));
 get_value(Key) when is_atom(Key) ->
+    %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
     {ok, Config} = application:get_env(cfclient, config),
     maps:get(Key, Config).
 
@@ -155,5 +157,6 @@ parse_analytics_push_interval(Opts)  ->
 
 -spec clear_config() -> ok.
 clear_config() ->
+    %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
     application:unset_env(cfclient, config).
 

@@ -72,11 +72,16 @@ format_key({segment, Identifier}) ->
   <<"segments/", Identifier/binary>>.
 
 -spec set_pid(CachePID :: pid()) -> ok.
+
 set_pid(CachePID) ->
+  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
+  %% TODO - in fact, we should probably move this to the instance module
   application:set_env(cfclient, cachepid, CachePID).
 
 -spec get_pid() -> pid().
 get_pid() ->
+  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
+  %% TODO - in fact, we should probably move this to the instance module
   {ok, Pid} = application:get_env(cfclient, cachepid),
   Pid.
 
