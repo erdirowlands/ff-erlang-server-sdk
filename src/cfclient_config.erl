@@ -7,7 +7,7 @@
 -module(cfclient_config).
 
 %% API
--export([init/0, parse_options/2, get_value/1, clear_config/0, get_instance_config_value/2, register_instance_config/2]).
+-export([init/0, parse_options/2, clear_config/0, get_instance_config_value/2, register_instance_config/2]).
 
 %% Config defaults
 -define(DEFAULT_CONFIG_URL, "https://config.ff.harness.io/api/1.0"). %% Config endpoint for Prod
@@ -48,13 +48,13 @@ parse_options(ApiKey, Opts) when is_list(ApiKey), is_map(Opts) ->
         analytics_push_interval => AnalyticsPushInterval
     }.
 
--spec get_value(Key :: atom() | string()) -> string() | term().
-get_value(Key) when is_list(Key) ->
-    get_value(list_to_atom(Key));
-get_value(Key) when is_atom(Key) ->
-    %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
-    {ok, Config} = application:get_env(cfclient, config),
-    maps:get(Key, Config).
+%%-spec get_instance_config_value(Key :: atom() | string()) -> string() | term().
+%%get_instance_config_value(Key) when is_list(Key) ->
+%%    get_instance_config_value(list_to_atom(Key));
+%%get_instance_config_value(Key) when is_atom(Key) ->
+%%    %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
+%%    {ok, Config} = application:get_env(cfclient, config),
+%%    maps:get(Key, Config).
 
 parse_stream_enabled(Opts) ->
     case maps:get(stream_enabled, Opts, not_found) of

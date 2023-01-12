@@ -35,7 +35,7 @@ start(ApiKey, InstanceName, Options) ->
   case connect(ApiKey, InstanceName) of
     {ok, AuthToken} ->
       parse_project_data(InstanceName, AuthToken),
-      start_children();
+      start_children(InstanceName);
     {not_ok, Error} ->
       {not_ok, Error}
   end.
@@ -82,12 +82,12 @@ stop() ->
   unset_application_environment(application:get_all_env(cfclient)).
 
 %% Internal functions
--spec start_children() -> ok.
-start_children() ->
+-spec start_children(InstanceName :: atom()) -> ok.
+start_children(InstanceName) ->
   %% Start Feature/Group Cache
   {ok, CachePID} = supervisor:start_child(?PARENTSUP, {lru, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
   cfclient_cache_repository:set_pid(CachePID),
-  case cfclient_config:get_value(analytics_enabled) of
+  case cfclient_config:get_instance_config_value(InstanceName, analytics_enabled) of
     %% If analytics are enabled then we need to start the metrics gen server along with two separate caches for metrics and metrics targets.
     true ->
       %% Start metrics and metrics target caches

@@ -62,7 +62,7 @@ bool_variation(FlagKey, Target, Default) when is_binary(FlagKey) ->
   try
     case cfclient_evaluator:bool_variation(FlagKey, SanitisedTarget) of
       {ok, VariationIdentifier, Variation} ->
-        enqueue_metrics(cfclient_config:get_value(analytics_enabled), FlagKey, SanitisedTarget, VariationIdentifier, atom_to_binary(Variation)),
+        enqueue_metrics(cfclient_config:get_instance_config_value(analytics_enabled), FlagKey, SanitisedTarget, VariationIdentifier, atom_to_binary(Variation)),
         Variation;
       not_ok ->
         logger:error("Couldn't do evaluation for Flag: ~p~n \n Target ~p~n \n Returning user supplied Default: ~p~n", [FlagKey, SanitisedTarget, Default]),
@@ -89,7 +89,7 @@ string_variation(FlagKey, Target, Default) when is_binary(FlagKey) ->
   try
     case cfclient_evaluator:string_variation(FlagKey, SanitisedTarget) of
       {ok, VariationIdentifier, Variation} ->
-        enqueue_metrics(cfclient_config:get_value(analytics_enabled), FlagKey, SanitisedTarget, VariationIdentifier, list_to_binary(Variation)),
+        enqueue_metrics(cfclient_config:get_instance_config_value(analytics_enabled), FlagKey, SanitisedTarget, VariationIdentifier, list_to_binary(Variation)),
         Variation;
       not_ok ->
         logger:error("Couldn't do evaluation for Flag: ~p~n \n Target ~p~n \n Returning user supplied Default: ~p~n" , [FlagKey, SanitisedTarget, Default]),
@@ -116,7 +116,7 @@ number_variation(FlagKey, Target, Default) when is_binary(FlagKey) ->
   try
     case cfclient_evaluator:number_variation(FlagKey, SanitisedTarget) of
       {ok, VariationIdentifier, Variation} ->
-        enqueue_metrics(cfclient_config:get_value(analytics_enabled), FlagKey, SanitisedTarget, VariationIdentifier, list_to_binary(mochinum:digits(Variation))),
+        enqueue_metrics(cfclient_config:get_instance_config_value(analytics_enabled), FlagKey, SanitisedTarget, VariationIdentifier, list_to_binary(mochinum:digits(Variation))),
         Variation;
       not_ok ->
         logger:error("Couldn't do evaluation for Flag: ~p~n \n Target ~p~n \n Returning user supplied Default: ~p~n" , [FlagKey, SanitisedTarget, Default]),
@@ -143,7 +143,7 @@ json_variation(FlagKey, Target, Default) when is_binary(FlagKey) ->
   try
     case cfclient_evaluator:json_variation(FlagKey, SanitisedTarget) of
       {ok, VariationIdentifier, Variation} ->
-        enqueue_metrics(cfclient_config:get_value(analytics_enabled), FlagKey, SanitisedTarget, VariationIdentifier, jsx:encode(Variation)),
+        enqueue_metrics(cfclient_config:get_instance_config_value(analytics_enabled), FlagKey, SanitisedTarget, VariationIdentifier, jsx:encode(Variation)),
         Variation;
       not_ok ->
         logger:error("Couldn't do evaluation for Flag: ~p~n \n Target ~p~n \n Returning user supplied Default: ~p~n" , [FlagKey, SanitisedTarget, Default]),
@@ -168,7 +168,7 @@ retrieve_flags() ->
   AuthToken = list_to_binary(cfclient_instance:get_authtoken()),
   Environment = list_to_binary(cfclient_instance:get_project_value(environment)),
   ClusterID = list_to_binary(cfclient_instance:get_project_value(clusterIdentifier)),
-  RequestConfig = #{ cfg => #{auth => #{ 'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_value("config_url")},  params => #{cluster => ClusterID }},
+  RequestConfig = #{ cfg => #{auth => #{ 'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_instance_config_value("config_url")},  params => #{cluster => ClusterID }},
   ClientConfig = {RequestConfig, Environment},
   cfclient_retrieve:retrieve_flags(ctx:new(), ClientConfig).
 
@@ -177,7 +177,7 @@ retrieve_segments() ->
   AuthToken = list_to_binary(cfclient_instance:get_authtoken()),
   Environment = list_to_binary(cfclient_instance:get_project_value(environment)),
   ClusterID = list_to_binary(cfclient_instance:get_project_value(clusterIdentifier)),
-  RequestConfig = #{ cfg => #{auth => #{ 'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_value("config_url")},  params => #{cluster => ClusterID }},
+  RequestConfig = #{ cfg => #{auth => #{ 'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_instance_config_value("config_url")},  params => #{cluster => ClusterID }},
   ClientConfig = {RequestConfig, Environment},
   cfclient_retrieve:retrieve_segments(ctx:new(), ClientConfig).
 

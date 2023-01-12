@@ -20,7 +20,7 @@ start_link(InstanceName) ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, [InstanceName], []).
 
 init([InstanceName]) ->
-  AnalyticsPushInterval = cfclient_config:get_value(analytics_push_interval),
+  AnalyticsPushInterval = cfclient_config:get_instance_config_value(InstanceName, analytics_push_interval),
   MetricsCachePID = get_metrics_cache_pid(),
   MetricTargetCachePID = get_metric_target_cache_pid(),
   State = #cfclient_metrics_server_state{analytics_push_interval = AnalyticsPushInterval, metrics_cache_pid = MetricsCachePID, metric_target_cache_pid = MetricTargetCachePID, instance_name = InstanceName},
@@ -64,7 +64,7 @@ post_metrics(MetricsData, MetricTargetData, InstanceName) ->
   ClusterID = maps:get(clusterIdentifier, ProjectData),
   ClusterMap = #{cluster => ClusterID},
   AuthToken = cfclient_instance:get_instance_auth_token(InstanceName),
-  RequestConfig = #{cfg => #{auth => #{'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_value("events_url")}, params => #{metricsData => MetricsData, targetData => MetricTargetData}},
+  RequestConfig = #{cfg => #{auth => #{'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_instance_config_value(InstanceName, events_url)}, params => #{metricsData => MetricsData, targetData => MetricTargetData}},
   case cfapi_metrics_api:post_metrics(ctx:new(), ClusterMap, Environment, RequestConfig) of
     {ok, Response, _} ->
       {ok, Response};
