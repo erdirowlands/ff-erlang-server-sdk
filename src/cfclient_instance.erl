@@ -105,10 +105,12 @@ start_children() ->
 
 register_instance_project_data(InstanceName, ProjectData, AuthToken) when is_map(ProjectData), is_binary(AuthToken) ->
   Instances = cfclient_config:get_all_instances(),
-  NewInstances = maps:put(InstanceName, maps:put(project, ProjectData, maps:get(InstanceName, Instances)), Instances),
-  NewInstances2 = maps:put(project, ProjectData, maps:get(InstanceName, NewInstances)),
-%%  NewInstances = Instances#{InstanceName => #{project => ProjectData, auth_token => AuthToken}},
-  application:set_env(cfclient, instances, NewInstances2).
+  ProjectMap = maps:put(project, ProjectData, maps:get(InstanceName, Instances)),
+  AuthTokenMap = maps:put(auth_token, AuthToken, ProjectMap),
+%%  NewInstance = maps:put(InstanceName, ProjectMap, Instances), WORKING
+%%  NewInstances2 = maps:put(project, ProjectData, maps:get(InstanceName, InstanceProject)),
+  NewInstances = Instances#{InstanceName => AuthTokenMap},
+  application:set_env(cfclient, instances, NewInstances).
 
 get_instance_project_data(InstanceName) when is_atom(InstanceName) ->
   Instances = cfclient_config:get_all_instances(),
