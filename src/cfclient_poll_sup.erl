@@ -1,8 +1,8 @@
 %%%-------------------------------------------------------------------
-%%% @doc Metrics supervisor
+%%% @doc Polling supervisor
 %%% @end
 %%%-------------------------------------------------------------------
--module(cfclient_metrics_sup).
+-module(cfclient_poll_sup).
 
 -behaviour(supervisor).
 
@@ -12,8 +12,8 @@
 %% Supervisor callbacks
 -export([init/1]).
 
-%% The metrics server worker to supervise
--define(METRICS_SERVER, cfclient_metrics_server).
+%% The poll server worker to supervise
+-define(POLL_SERVER, cfclient_poll_server).
 
 %%%===================================================================
 %%% API functions
@@ -21,9 +21,9 @@
 
 
 %% @doc Starts the supervisor
--spec(start_link(MetricsSupName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(MetricsSupName) ->
-  supervisor:start_link({local, MetricsSupName}, ?MODULE, [?METRICS_SERVER]).
+-spec(start_link(PollSupName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+start_link(PollSupName) ->
+  supervisor:start_link({local, PollSupName}, ?MODULE, [?POLL_SERVER]).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -49,10 +49,10 @@ init([]) ->
 
   ChildSpec = #{
     %% `id` key is ignored if provided in a simple_one_for_one strategy so don't provide it
-    start => {?METRICS_SERVER, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args
+    start => {?POLL_SERVER, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args
     restart => permanent,
     shutdown => 5000,
     type => worker,
-    modules => [?METRICS_SERVER]},
+    modules => [?POLL_SERVER]},
 
   {ok, {SupFlags, [ChildSpec]}}.
