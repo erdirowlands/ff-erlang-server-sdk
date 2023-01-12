@@ -7,11 +7,12 @@
 -module(cfclient_instance).
 
 %% API
--export([start/1, start/2, get_authtoken/0, get_project_value/1, stop/0]).
+-export([start/3, get_authtoken/0, get_project_value/1, stop/0]).
 
 -define(DEFAULT_OPTIONS, #{}).
 -define(PARENTSUP, cfclient_sup).
 
+%% Prefixes for client instances
 -define(INSTANCE_PREFIX, "cfclient_instance_").
 -define(POLL_SERVER_PREFIX, "cfclient_instance_poll_server_").
 -define(METRICS_SERVER_PREFIX, "cfclient_instance_metrics_server_").
@@ -25,14 +26,9 @@
 -define(METRICS_CACHE_CHILD_REF, cfclient_metrics_server_lru).
 -define(METRIC_TARGET_CACHE_CHILD_REF, cfclient_metrics_server_target_lru).
 
-
--spec start(ApiKey :: string()) -> ok.
-start(ApiKey) ->
-  start(ApiKey, ?DEFAULT_OPTIONS).
-
--spec start(ApiKey :: string(), Options :: map()) -> ok | not_ok.
-start(ApiKey, Options) ->
-  logger:info("Starting Client"),
+-spec start(InstanceName :: string(), ApiKey :: string(), Options :: map()) -> ok | not_ok.
+start(ApiKey, InstanceName, Options) ->
+  logger:info("Starting Client Instance: ~p", [InstanceName]),
   logger:info("Initializing Config"),
   cfclient_config:init(ApiKey, Options),
   case connect(ApiKey) of
@@ -113,11 +109,11 @@ start_children() ->
   ok.
 
 get_ref_from_instance(instance, InstanceName) ->
-  list_to_atom(?INSTANCE_PREFIX ++ InstanceName);
+  list_to_atom(?INSTANCE_PREFIX ++ atom_to_list(InstanceName));
 get_ref_from_instance(instance_poll_server, InstanceName) ->
-  list_to_atom(?POLL_SERVER_PREFIX ++ InstanceName);
+  list_to_atom(?POLL_SERVER_PREFIX ++ atom_to_list(InstanceName));
 get_ref_from_instance(instance_metrics_server, InstanceName) ->
-  list_to_atom(?METRICS_SERVER_PREFIX ++ InstanceName).
+  list_to_atom(?METRICS_SERVER_PREFIX ++ atom_to_list(InstanceName)).
 
 -spec stop_children(Children :: list()) -> ok.
 stop_children([{Id, _, _, _} | Tail]) ->

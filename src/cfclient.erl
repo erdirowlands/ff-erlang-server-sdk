@@ -15,13 +15,35 @@ anonymous => boolean(),
 attributes := #{atom() := binary() | atom() | list()}
 }.
 
+%% Default client instance suffix which is used if user does not request a specific instance name
+-define(DEFAULT_INSTANCE_NAME, "default").
+
+%% @doc Start Client instance with defaults for name and client configuration.
+%%
+%% The instance name is set as 'cfclient_instance_default'
+%% For default client configuration see SDK Documentation.
 -spec start(ApiKey :: string()) -> ok.
 start(ApiKey) ->
-  start(ApiKey, #{}).
+  start(ApiKey, ?DEFAULT_INSTANCE_NAME).
 
--spec start(ApiKey :: string(), Options :: map()) -> ok.
-start(ApiKey, Options) ->
-  cfclient_instance:start(ApiKey, Options).
+%% @doc Start Client instance with custom name or configuration.
+%%
+%% When `InstanceNameOrOptions` is an atom, the client instance is given that name.
+%% When `InstanceNameOrOptions` is a map, the client instance is started with with custom configuration.
+%% For default client configuration see SDK Documentation.
+-spec start(ApiKey :: string(), InstanceNameOrOptions :: atom() | map()) -> ok.
+start(ApiKey, Options) when is_list(ApiKey), is_map(Options)->
+  start(ApiKey, ?DEFAULT_INSTANCE_NAME, Options);
+start(ApiKey, InstanceName) when is_list(ApiKey), is_atom(InstanceName)->
+  start(ApiKey, InstanceName, #{}).
+
+
+%% @doc Start Client with custom name and configuration
+%%
+%% The instance name is set as 'cfclient_default'
+-spec start(ApiKey :: string(), InstanceName :: atom(), Options :: map()) -> ok.
+start(ApiKey, InstanceName, Options) ->
+  cfclient_instance:start(ApiKey, InstanceName, Options).
 
 -spec bool_variation(FlagKey :: binary() | list(), Target :: target(), Default :: binary()) -> binary().
 bool_variation(FlagKey, Target, Default) when is_list(FlagKey) ->
