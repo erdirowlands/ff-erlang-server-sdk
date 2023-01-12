@@ -6,25 +6,25 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, enqueue_metrics/4, set_metrics_cache_pid/1, set_metrics_target_cache_pid/1]).
+-export([start_link/1, enqueue_metrics/4, set_metrics_cache_pid/1, set_metrics_target_cache_pid/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 -include("cfclient_metrics_attributes.hrl").
 
 %% TODO DELETE - we don't want a constant reference for this due to multiple client instances
 -define(SERVER, ?MODULE).
 
--record(cfclient_metrics_server_state, {analytics_push_interval, metrics_cache_pid, metric_target_cache_pid}).
+-record(cfclient_metrics_server_state, {analytics_push_interval, metrics_cache_pid, metric_target_cache_pid, instance_name}).
 
-start_link() ->
+start_link(InstanceName) ->
   %% TODO - pass unique instance name here
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+  gen_server:start_link({local, ?SERVER}, ?MODULE, [InstanceName], []).
 
-init([]) ->
+init([InstanceName]) ->
   AnalyticsPushInterval = cfclient_config:get_value(analytics_push_interval),
   MetricsCachePID = get_metrics_cache_pid(),
   MetricTargetCachePID = get_metric_target_cache_pid(),
-  State = #cfclient_metrics_server_state{analytics_push_interval = AnalyticsPushInterval, metrics_cache_pid = MetricsCachePID, metric_target_cache_pid = MetricTargetCachePID},
-  metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID),
+  State = #cfclient_metrics_server_state{analytics_push_interval = AnalyticsPushInterval, metrics_cache_pid = MetricsCachePID, metric_target_cache_pid = MetricTargetCachePID, instance_name = InstanceName},
+  metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID, InstanceName),
   {ok, State}.
 
 handle_call(_Request, _From, State) ->
@@ -37,11 +37,11 @@ handle_info(_Info, State = #cfclient_metrics_server_state{analytics_push_interva
   metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID),
   {noreply, State}.
 
-metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID) ->
+metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID, InstanceName) ->
   logger:info("Gathering and sending analytics with interval : ~p seconds", [AnalyticsPushInterval / 1000]),
   MetricsData = create_metrics_data(lru:keys(MetricsCachePID), MetricsCachePID, os:system_time(millisecond), []),
   MetricTargetData = create_metric_target_data(lru:keys(MetricTargetCachePID), MetricTargetCachePID, []),
-  case post_metrics(MetricsData, MetricTargetData) of
+  case post_metrics(MetricsData, MetricTargetData, InstanceName) of
     {ok, Response} ->
       logger:info("Successfully posted metric to ff-server: ~p~n: ", [Response]),
       reset_metrics_cache(MetricsCachePID),
@@ -56,12 +56,12 @@ metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID) -
   erlang:send_after(AnalyticsPushInterval, self(), trigger).
 
 %% Don't sent a request to the API if no metrics gathered this interval
-post_metrics([], []) ->
+post_metrics([], [], _) ->
   noop;
-post_metrics(MetricsData, MetricTargetData) ->
-  AuthToken = list_to_binary(cfclient_instance:get_authtoken()),
-  Environment = list_to_binary(cfclient_instance:get_project_value("environment")),
-  ClusterID = cfclient_instance:get_project_value("clusterIdentifier"),
+post_metrics(MetricsData, MetricTargetData, InstanceName) ->
+  AuthToken = list_to_binary(cfclient_config:get_instance_auth_token(InstanceName)),
+  Environment = list_to_binary(cfclient_config:get_instance_project_value(InstanceName, environment)),
+  ClusterID = cfclient_config:get_instance_project_value(InstanceName, clusterIdentifier),
   ClusterMap = #{cluster => ClusterID},
   RequestConfig = #{cfg => #{auth => #{'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_value("events_url")}, params => #{metricsData => MetricsData, targetData => MetricTargetData}},
   case cfapi_metrics_api:post_metrics(ctx:new(), ClusterMap, Environment, RequestConfig) of

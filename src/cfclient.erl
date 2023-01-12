@@ -166,8 +166,8 @@ enqueue_metrics(false, FlagIdentifier, Target, _, VariationValue) ->
 -spec retrieve_flags() -> ok.
 retrieve_flags() ->
   AuthToken = list_to_binary(cfclient_instance:get_authtoken()),
-  Environment = list_to_binary(cfclient_instance:get_project_value("environment")),
-  ClusterID = list_to_binary(cfclient_instance:get_project_value("clusterIdentifier")),
+  Environment = list_to_binary(cfclient_instance:get_project_value(environment)),
+  ClusterID = list_to_binary(cfclient_instance:get_project_value(clusterIdentifier)),
   RequestConfig = #{ cfg => #{auth => #{ 'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_value("config_url")},  params => #{cluster => ClusterID }},
   ClientConfig = {RequestConfig, Environment},
   cfclient_retrieve:retrieve_flags(ctx:new(), ClientConfig).
@@ -175,8 +175,8 @@ retrieve_flags() ->
 -spec retrieve_segments() -> ok.
 retrieve_segments() ->
   AuthToken = list_to_binary(cfclient_instance:get_authtoken()),
-  Environment = list_to_binary(cfclient_instance:get_project_value("environment")),
-  ClusterID = list_to_binary(cfclient_instance:get_project_value("clusterIdentifier")),
+  Environment = list_to_binary(cfclient_instance:get_project_value(environment)),
+  ClusterID = list_to_binary(cfclient_instance:get_project_value(clusterIdentifier)),
   RequestConfig = #{ cfg => #{auth => #{ 'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_value("config_url")},  params => #{cluster => ClusterID }},
   ClientConfig = {RequestConfig, Environment},
   cfclient_retrieve:retrieve_segments(ctx:new(), ClientConfig).

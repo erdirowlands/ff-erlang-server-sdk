@@ -7,7 +7,7 @@
 -module(cfclient_config).
 
 %% API
--export([init/2, get_value/1, clear_config/0]).
+-export([init/0, parse_options/2, get_value/1, clear_config/0, register_instance_config/2, get_instance_config_value/2, get_instance_project_value/2, register_instance_project_data/3,  get_instance_auth_token/1]).
 
 %% Config defaults
 -define(DEFAULT_CONFIG_URL, "https://config.ff.harness.io/api/1.0"). %% Config endpoint for Prod
@@ -18,13 +18,11 @@
 -define(DEFAULT_POLL_INTERVAL, 60000). %% interval in milliseconds for polling data from CF Server
 -define(DEFAULT_STREAM_ENABLED, true). %% boolean for enabling events stream
 -define(DEFAULT_ANALYTICS_ENABLED, true). %% boolean for enabling analytics send to CF Server
--define(DEFAULT_ANALYTICS_PUSH_INTERVAL, 60000). 
+-define(DEFAULT_ANALYTICS_PUSH_INTERVAL, 60000).
 
--spec init(ApiKey :: string(), InstanceName :: atom(), Opts :: map()) -> ok.
-init(ApiKey, InstanceName, Opts) when is_list(ApiKey), is_atom(InstanceName), is_map(Opts) ->
-    Config = parse_options(ApiKey, Opts),
-    %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
-    application:set_env(cfclient, config, Config).
+-spec init() -> ok.
+init() ->
+  application:set_env(cfclient, instances, #{}).
 
 -spec parse_options(ApiKey :: string(), Opts :: map()) -> map().
 parse_options(ApiKey, Opts) when is_list(ApiKey), is_map(Opts) ->
@@ -154,6 +152,20 @@ parse_analytics_push_interval(Opts)  ->
             logger:debug("analytics_push_interval is: ~p~n", [PushInterval]),
             PushInterval
     end.
+
+
+
+get_instance_config_value(InstanceName, ConfigKey) when is_atom(InstanceName), is_atom(ConfigKey) ->
+    Instances = get_all_instances(),
+    Instance = maps:get(InstanceName, Instances),
+    Config = maps:get(config, Instance),
+    maps:get(ConfigKey, Config).
+
+
+
+get_all_instances() ->
+  {ok, Instances} = application:get_env(cfclient, instances),
+  Instances.
 
 -spec clear_config() -> ok.
 clear_config() ->

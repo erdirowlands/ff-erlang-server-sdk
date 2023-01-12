@@ -7,7 +7,7 @@
 -module(cfclient_instance).
 
 %% API
--export([start/3, get_authtoken/0, get_project_value/1, stop/0]).
+-export([start/3, stop/0, register_instance_config/2, register_instance_project_data/3, get_instance_project_value/2, get_instance_auth_token/1]).
 
 -define(DEFAULT_OPTIONS, #{}).
 -define(PARENTSUP, cfclient_sup).
@@ -30,11 +30,11 @@
 start(ApiKey, InstanceName, Options) ->
   logger:info("Starting Client Instance: ~p", [InstanceName]),
   logger:info("Initializing Config"),
-  cfclient_config:init(ApiKey, InstanceName, Options),
+  Config = cfclient_config:parse_options(ApiKey, Options),
+  ok = cfclient_config:register_instance_config(InstanceName, Config),
   case connect(ApiKey) of
     {ok, AuthToken} ->
-      AuthToken,
-      parse_project_data(AuthToken),
+      parse_project_data(InstanceName, AuthToken),
       start_children();
     {not_ok, Error} ->
       {not_ok, Error}
@@ -48,8 +48,6 @@ connect(ApiKey) ->
   case cfapi_client_api:authenticate(ctx:new(), Opts) of
     {ok, ResponseBody, _} ->
       AuthToken = maps:get('authToken', ResponseBody),
-      %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
-      application:set_env(cfclient, authtoken, AuthToken),
       {ok, AuthToken};
     {error, Response, _} ->
       logger:error("Error when authorising API Key. Error response: ~p~n", [Response]),
@@ -57,27 +55,24 @@ connect(ApiKey) ->
   end.
 
 
--spec get_authtoken() -> string() | {error, authtoken_not_found, term()}.
-get_authtoken() ->
-  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
-  {ok, AuthToken} = application:get_env(cfclient, authtoken),
-  binary_to_list(AuthToken).
+%%-spec get_authtoken() -> string() | {error, authtoken_not_found, term()}.
+%%get_authtoken() ->
+%%  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
+%%  {ok, AuthToken} = application:get_env(cfclient, authtoken),
+%%  binary_to_list(AuthToken).
 
--spec parse_project_data(JwtToken :: string()) -> ok.
-parse_project_data(JwtToken) ->
+-spec parse_project_data(InstanceName :: atom(), JwtToken :: string()) -> ok.
+parse_project_data(InstanceName, JwtToken) ->
   JwtString = lists:nth(2, string:split(JwtToken, ".", all)),
   DecodedJwt = base64url:decode(JwtString),
   UnicodeJwt = unicode:characters_to_binary(DecodedJwt, utf8),
   Project = jsx:decode(string:trim(UnicodeJwt)),
-  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
-  application:set_env(cfclient, project, Project).
+  cfclient_config:register_instance_project_data(InstanceName, Project, JwtToken).
 
--spec get_project_value(Key :: string()) -> string() | {error, key_not_found, term()}.
-get_project_value(Key) ->
-  %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
-  {ok, Project} = application:get_env(cfclient, project),
-  Value = maps:get(list_to_binary(Key), Project),
-  binary_to_list(Value).
+%%-spec get_project_value(Key :: string()) -> string() | {error, key_not_found, term()}.
+%%get_project_value(Key) ->
+%%  cfclient_config:get_instance_project_value()
+%%  binary_to_list(Value).
 
 -spec stop() -> ok | {error, not_found, term()}.
 stop() ->
@@ -107,6 +102,28 @@ start_children() ->
   %% Start Poll Processor
   {ok, _} = supervisor:start_child(?PARENTSUP, {?POLL_SERVER_CHILD_REF, {cfclient_poll_server, start_link, []}, permanent, 5000, worker, ['cfclient_poll_server']}),
   ok.
+
+register_instance_config(InstanceName, Config) when is_atom(InstanceName), is_map(Config) ->
+  Instances = cfclient_config:get_all_instances(),
+  NewInstances = Instances#{InstanceName => #{config => Config}},
+  application:set_env(cfclient, instances, NewInstances).
+
+register_instance_project_data(InstanceName, ProjectData, AuthToken) when is_map(ProjectData), is_binary(AuthToken) ->
+  Instances = cfclient_config:get_all_instances(),
+  NewInstances = Instances#{InstanceName => #{project => ProjectData, auth_token => AuthToken}},
+  application:set_env(cfclient, instances, NewInstances).
+
+get_instance_project_value(InstanceName, ProjectKey) when is_atom(InstanceName), is_atom(ProjectKey) ->
+  Instances = cfclient_config:get_all_instances(),
+  Instance = maps:get(InstanceName, Instances),
+  Project = maps:get(project, Instance),
+  binary_to_list(maps:get(ProjectKey, Project)).
+
+get_instance_auth_token(InstanceName) when is_atom(InstanceName) ->
+  Instances = cfclient_config:get_all_instances(),
+  Instance = maps:get(InstanceName, Instances),
+  binary_to_list(maps:get(auth_token, Instance)).
+
 
 get_ref_from_instance(instance, InstanceName) ->
   list_to_atom(?INSTANCE_PREFIX ++ atom_to_list(InstanceName));
