@@ -7,21 +7,23 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
 
--define(SERVER, ?MODULE).
+%% The metrics server worker to supervise 
+-define(METRICS_SERVER, cfclient_metrics_server).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
+
 %% @doc Starts the supervisor
--spec(start_link() -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link() ->
-  supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+-spec(start_link(MetricsSupName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+start_link(MetricsSupName) ->
+  supervisor:start_link({local, MetricsSupName}, ?MODULE, [?METRICS_SERVER]).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -40,16 +42,17 @@ start_link() ->
 init([]) ->
   MaxRestarts = 10,
   MaxSecondsBetweenRestarts = 3600,
-  SupFlags = #{strategy => simple_one_for_one,
+  SupFlags = #{
+    strategy => simple_one_for_one,
     intensity => MaxRestarts,
     period => MaxSecondsBetweenRestarts},
 
   ChildSpec = #{
     %% `id` key is ignored if provided in a simple_one_for_one strategy so don't provide it
-    start => {cfclient_metrics_server, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args
+    start => {?METRICS_SERVER, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args
     restart => permanent,
     shutdown => 5000,
     type => worker,
-    modules => [cfclient_metrics_server]},
+    modules => [?METRICS_SERVER]},
 
   {ok, {SupFlags, [ChildSpec]}}.
