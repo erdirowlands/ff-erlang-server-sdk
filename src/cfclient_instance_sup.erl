@@ -1,6 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% @copyright (C) 2022, <COMPANY>
-%%% @doc
+%%% @doc CFClient instance supervisor
 %%%
 %%% @end
 %%%-------------------------------------------------------------------
@@ -9,21 +8,32 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/3]).
 
 %% Supervisor callbacks
 -export([init/1]).
 
--define(SERVER, ?MODULE).
+-define(INSTANCE_CHILD(Id, Module, Args, Type),
+  #{
+    id => Id,
+    start => {Module, start_link, Args},
+    restart => permanent,
+    shutdown => 5000,
+    type => Type,
+    modules => [Module]}).
+
+-define(POLL_SUPERVISOR, cfclient_poll_sup).
+-define(METRICS_SUPERVISOR, cfclient_metrics_sup).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
 %% @doc Starts the supervisor
--spec(start_link() -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link() ->
-  supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+-spec(start_link(InstanceSupName :: atom(), PollSupChildName :: atom(), MetricsSupChildName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+%% TODO - when streaming is implemented, we'll add its supervisor ref here
+start_link(InstanceSupName, PollSupChildName, MetricsSupChildName) ->
+  supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, MetricsSupChildName]).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -39,15 +49,21 @@ start_link() ->
     MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
     [ChildSpec :: supervisor:child_spec()]}}
   | ignore | {error, Reason :: term()}).
-init([]) ->
-  MaxRestarts = 1000,
-  MaxSecondsBetweenRestarts = 3600,
-  SupFlags = #{strategy => one_for_one,
+init([PollSupChildName, MetricsSupChildName]) ->
+  MaxRestarts = 1,
+  MaxSecondsBetweenRestarts = 5,
+  SupFlags = #{
+    strategy => one_for_one,
     intensity => MaxRestarts,
     period => MaxSecondsBetweenRestarts},
 
-  {ok, {SupFlags, []}}.
+  {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName)}}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+instance_children(PollSupName, MetricsSupName) ->
+  PollSupChild = ?INSTANCE_CHILD(?POLL_SUPERVISOR, ?POLL_SUPERVISOR, [PollSupName], supervisor),
+  MetricsSupChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [MetricsSupName], supervisor),
+  [PollSupChild, MetricsSupChild].
