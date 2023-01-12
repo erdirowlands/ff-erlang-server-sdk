@@ -33,8 +33,8 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Request, State) ->
   {noreply, State}.
 
-handle_info(_Info, State = #cfclient_metrics_server_state{analytics_push_interval = AnalyticsPushInterval, metrics_cache_pid = MetricsCachePID, metric_target_cache_pid = MetricTargetCachePID}) ->
-  metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID),
+handle_info(_Info, State = #cfclient_metrics_server_state{analytics_push_interval = AnalyticsPushInterval, metrics_cache_pid = MetricsCachePID, metric_target_cache_pid = MetricTargetCachePID, instance_name = InstanceName}) ->
+  metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID, InstanceName),
   {noreply, State}.
 
 metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID, InstanceName) ->
@@ -59,10 +59,11 @@ metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID, I
 post_metrics([], [], _) ->
   noop;
 post_metrics(MetricsData, MetricTargetData, InstanceName) ->
-  AuthToken = list_to_binary(cfclient_config:get_instance_auth_token(InstanceName)),
-  Environment = list_to_binary(cfclient_config:get_instance_project_value(InstanceName, environment)),
-  ClusterID = cfclient_config:get_instance_project_value(InstanceName, clusterIdentifier),
+  ProjectData = cfclient_instance:get_instance_project_data(InstanceName),
+  Environment = maps:get(environment, ProjectData),
+  ClusterID = maps:get(clusterIdentifier, ProjectData),
   ClusterMap = #{cluster => ClusterID},
+  AuthToken = cfclient_instance:get_instance_auth_token(InstanceName),
   RequestConfig = #{cfg => #{auth => #{'BearerAuth' => <<"Bearer ", AuthToken/binary>>}, host => cfclient_config:get_value("events_url")}, params => #{metricsData => MetricsData, targetData => MetricTargetData}},
   case cfapi_metrics_api:post_metrics(ctx:new(), ClusterMap, Environment, RequestConfig) of
     {ok, Response, _} ->
@@ -133,8 +134,8 @@ create_metric(UniqueEvaluation, UniqueEvaluationTarget, Count, TimeStamp) ->
 
 create_metric_target_data([UniqueMetricsTargetKey | Tail], MetricsTargetCachePID, Accu) ->
   Target = lru:get(MetricsTargetCachePID, UniqueMetricsTargetKey),
-      MetricTarget = create_metric_target(Target),
-      create_metric_target_data(Tail, MetricsTargetCachePID, [MetricTarget | Accu]);
+  MetricTarget = create_metric_target(Target),
+  create_metric_target_data(Tail, MetricsTargetCachePID, [MetricTarget | Accu]);
 create_metric_target_data([], _, Accu) -> Accu.
 
 create_metric_target(Target) ->

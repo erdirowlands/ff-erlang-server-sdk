@@ -7,7 +7,7 @@
 -module(cfclient_config).
 
 %% API
--export([init/0, parse_options/2, get_value/1, clear_config/0, register_instance_config/2, get_instance_config_value/2, get_instance_project_value/2, register_instance_project_data/3,  get_instance_auth_token/1]).
+-export([init/0, parse_options/2, get_value/1, clear_config/0, get_instance_config_value/2, register_instance_config/2]).
 
 %% Config defaults
 -define(DEFAULT_CONFIG_URL, "https://config.ff.harness.io/api/1.0"). %% Config endpoint for Prod
@@ -153,15 +153,16 @@ parse_analytics_push_interval(Opts)  ->
             PushInterval
     end.
 
-
+register_instance_config(InstanceName, Config) when is_atom(InstanceName), is_map(Config) ->
+    Instances = cfclient_config:get_all_instances(),
+    NewInstances = Instances#{InstanceName => #{config => Config}},
+    application:set_env(cfclient, instances, NewInstances).
 
 get_instance_config_value(InstanceName, ConfigKey) when is_atom(InstanceName), is_atom(ConfigKey) ->
     Instances = get_all_instances(),
     Instance = maps:get(InstanceName, Instances),
     Config = maps:get(config, Instance),
     maps:get(ConfigKey, Config).
-
-
 
 get_all_instances() ->
   {ok, Instances} = application:get_env(cfclient, instances),

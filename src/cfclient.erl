@@ -16,7 +16,7 @@ attributes := #{atom() := binary() | atom() | list()}
 }.
 
 %% Default client instance suffix which is used if user does not request a specific instance name
--define(DEFAULT_INSTANCE_NAME, "default").
+-define(DEFAULT_INSTANCE_NAME, default).
 
 %% @doc Start Client instance with defaults for name and client configuration.
 %%

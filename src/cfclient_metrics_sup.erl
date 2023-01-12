@@ -47,6 +47,7 @@ init([]) ->
     intensity => MaxRestarts,
     period => MaxSecondsBetweenRestarts},
 
+  %% TODO - make sure that when start_child/2 is called in the instance module, that the INSTANCE NAME is provided!!
   ChildSpec = #{
     %% `id` key is ignored if provided in a simple_one_for_one strategy so don't provide it
     start => {?METRICS_SERVER, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args

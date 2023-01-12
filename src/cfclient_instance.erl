@@ -7,7 +7,7 @@
 -module(cfclient_instance).
 
 %% API
--export([start/3, stop/0, register_instance_config/2, register_instance_project_data/3, get_instance_project_value/2, get_instance_auth_token/1]).
+-export([start/3, stop/0, register_instance_project_data/3, get_instance_project_data/1, get_instance_auth_token/1]).
 
 -define(DEFAULT_OPTIONS, #{}).
 -define(PARENTSUP, cfclient_sup).
@@ -32,7 +32,7 @@ start(ApiKey, InstanceName, Options) ->
   logger:info("Initializing Config"),
   Config = cfclient_config:parse_options(ApiKey, Options),
   ok = cfclient_config:register_instance_config(InstanceName, Config),
-  case connect(ApiKey) of
+  case connect(ApiKey, InstanceName) of
     {ok, AuthToken} ->
       parse_project_data(InstanceName, AuthToken),
       start_children();
@@ -41,9 +41,9 @@ start(ApiKey, InstanceName, Options) ->
   end.
 
 
--spec connect(ApiKey :: string()) -> string() | {error, connect_failure, term()}.
-connect(ApiKey) ->
-  Opts = #{cfg => #{host => cfclient_config:get_value(config_url)}, params => #{apiKey => list_to_binary(ApiKey)}},
+-spec connect(ApiKey :: string(), InstanceName :: atom()) -> string() | {error, connect_failure, term()}.
+connect(ApiKey, InstanceName) ->
+  Opts = #{cfg => #{host => cfclient_config:get_instance_config_value(InstanceName, config_url)}, params => #{apiKey => list_to_binary(ApiKey)}},
   {_Status, ResponseBody, _Headers} = cfapi_client_api:authenticate(ctx:new(), Opts),
   case cfapi_client_api:authenticate(ctx:new(), Opts) of
     {ok, ResponseBody, _} ->
@@ -67,7 +67,7 @@ parse_project_data(InstanceName, JwtToken) ->
   DecodedJwt = base64url:decode(JwtString),
   UnicodeJwt = unicode:characters_to_binary(DecodedJwt, utf8),
   Project = jsx:decode(string:trim(UnicodeJwt)),
-  cfclient_config:register_instance_project_data(InstanceName, Project, JwtToken).
+  register_instance_project_data(InstanceName, Project, JwtToken).
 
 %%-spec get_project_value(Key :: string()) -> string() | {error, key_not_found, term()}.
 %%get_project_value(Key) ->
@@ -103,21 +103,17 @@ start_children() ->
   {ok, _} = supervisor:start_child(?PARENTSUP, {?POLL_SERVER_CHILD_REF, {cfclient_poll_server, start_link, []}, permanent, 5000, worker, ['cfclient_poll_server']}),
   ok.
 
-register_instance_config(InstanceName, Config) when is_atom(InstanceName), is_map(Config) ->
-  Instances = cfclient_config:get_all_instances(),
-  NewInstances = Instances#{InstanceName => #{config => Config}},
-  application:set_env(cfclient, instances, NewInstances).
-
 register_instance_project_data(InstanceName, ProjectData, AuthToken) when is_map(ProjectData), is_binary(AuthToken) ->
   Instances = cfclient_config:get_all_instances(),
-  NewInstances = Instances#{InstanceName => #{project => ProjectData, auth_token => AuthToken}},
-  application:set_env(cfclient, instances, NewInstances).
+  NewInstances = maps:put(InstanceName, maps:put(project, ProjectData, maps:get(InstanceName, Instances)), Instances),
+  NewInstances2 = maps:put(project, ProjectData, maps:get(InstanceName, NewInstances)),
+%%  NewInstances = Instances#{InstanceName => #{project => ProjectData, auth_token => AuthToken}},
+  application:set_env(cfclient, instances, NewInstances2).
 
-get_instance_project_value(InstanceName, ProjectKey) when is_atom(InstanceName), is_atom(ProjectKey) ->
+get_instance_project_data(InstanceName) when is_atom(InstanceName) ->
   Instances = cfclient_config:get_all_instances(),
   Instance = maps:get(InstanceName, Instances),
-  Project = maps:get(project, Instance),
-  binary_to_list(maps:get(ProjectKey, Project)).
+  Project = maps:get(project, Instance).
 
 get_instance_auth_token(InstanceName) when is_atom(InstanceName) ->
   Instances = cfclient_config:get_all_instances(),
