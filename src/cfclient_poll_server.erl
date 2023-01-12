@@ -11,11 +11,13 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
+%% TODO DELETE - we don't want a constant reference for this due to multiple client instances
 -define(SERVER, ?MODULE).
 
 -record(cfclient_poll_server_state, {}).
 
 start_link() ->
+  %% TODO - pass unique instance name here
   gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 init([]) ->
