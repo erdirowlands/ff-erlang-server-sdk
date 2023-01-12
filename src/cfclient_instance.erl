@@ -30,7 +30,7 @@
 start(ApiKey, InstanceName, Options) ->
   logger:info("Starting Client Instance: ~p", [InstanceName]),
   logger:info("Initializing Config"),
-  cfclient_config:init(ApiKey, Options),
+  cfclient_config:init(ApiKey, InstanceName, Options),
   case connect(ApiKey) of
     {ok, AuthToken} ->
       AuthToken,

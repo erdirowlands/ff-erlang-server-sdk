@@ -20,8 +20,8 @@
 -define(DEFAULT_ANALYTICS_ENABLED, true). %% boolean for enabling analytics send to CF Server
 -define(DEFAULT_ANALYTICS_PUSH_INTERVAL, 60000). 
 
--spec init(ApiKey :: string(), Opts :: map()) -> ok.
-init(ApiKey, Opts) when is_list(ApiKey), is_map(Opts) ->
+-spec init(ApiKey :: string(), InstanceName :: atom(), Opts :: map()) -> ok.
+init(ApiKey, InstanceName, Opts) when is_list(ApiKey), is_atom(InstanceName), is_map(Opts) ->
     Config = parse_options(ApiKey, Opts),
     %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
     application:set_env(cfclient, config, Config).
