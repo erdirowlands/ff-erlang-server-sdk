@@ -12,6 +12,12 @@
 -define(DEFAULT_OPTIONS, #{}).
 -define(PARENTSUP, cfclient_sup).
 
+-define(INSTANCE_PREFIX, "cfclient_instance_").
+-define(POLL_SERVER_PREFIX, "cfclient_instance_poll_server_").
+-define(METRICS_SERVER_PREFIX, "cfclient_instance_metrics_server_").
+
+
+
 %% Child references
 -define(POLL_SERVER_CHILD_REF, cfclient_poll_server).
 -define(LRU_CACHE_CHILD_REF, cfclient_lru).
@@ -105,6 +111,13 @@ start_children() ->
   %% Start Poll Processor
   {ok, _} = supervisor:start_child(?PARENTSUP, {?POLL_SERVER_CHILD_REF, {cfclient_poll_server, start_link, []}, permanent, 5000, worker, ['cfclient_poll_server']}),
   ok.
+
+get_ref_from_instance(instance, InstanceName) ->
+  list_to_atom(?INSTANCE_PREFIX ++ InstanceName);
+get_ref_from_instance(instance_poll_server, InstanceName) ->
+  list_to_atom(?POLL_SERVER_PREFIX ++ InstanceName);
+get_ref_from_instance(instance_metrics_server, InstanceName) ->
+  list_to_atom(?METRICS_SERVER_PREFIX ++ InstanceName).
 
 -spec stop_children(Children :: list()) -> ok.
 stop_children([{Id, _, _, _} | Tail]) ->
