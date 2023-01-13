@@ -49,7 +49,7 @@ start_link(InstanceSupName, PollSupChildName, MetricsSupChildName) ->
     MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
     [ChildSpec :: supervisor:child_spec()]}}
   | ignore | {error, Reason :: term()}).
-init([PollSupChildName, MetricsSupChildName]) ->
+init([PollSupChildName, MetricsSupChildName, LRUCacheWorkerName]) ->
   MaxRestarts = 1,
   MaxSecondsBetweenRestarts = 5,
   SupFlags = #{
@@ -57,13 +57,14 @@ init([PollSupChildName, MetricsSupChildName]) ->
     intensity => MaxRestarts,
     period => MaxSecondsBetweenRestarts},
 
-  {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName)}}.
+  {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, LRUCacheWorkerName)}}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-instance_children(PollSupName, MetricsSupName) ->
+instance_children(PollSupName, MetricsSupName, LRUCacheWorkerName) ->
   PollSupChild = ?INSTANCE_CHILD(?POLL_SUPERVISOR, ?POLL_SUPERVISOR, [PollSupName], supervisor),
   MetricsSupChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [MetricsSupName], supervisor),
-  [PollSupChild, MetricsSupChild].
+  LRUWorkerChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [MetricsSupName], worker),
+  [PollSupChild, MetricsSupChild, LRUWorkerChild].

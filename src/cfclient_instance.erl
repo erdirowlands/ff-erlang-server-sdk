@@ -12,10 +12,15 @@
 -define(DEFAULT_OPTIONS, #{}).
 -define(PARENTSUP, cfclient_sup).
 
-%% Prefixes for client instances
+%% Prefix for instance process
 -define(INSTANCE_PREFIX, "cfclient_instance_").
+
+%% Prefixes for instance child processes
 -define(POLL_SERVER_PREFIX, "cfclient_instance_poll_server_").
 -define(METRICS_SERVER_PREFIX, "cfclient_instance_metrics_server_").
+-define(FEATURE_CACHE_PREFIX, "cfclient_instance_feature_cache_"). %% Flag/Group cache process
+-define(METRICS_EVALUATION_CACHE_PREFIX, "cfclient_instance_metrics_evaluation_cache_"). %% Metrics cache process
+-define(METRICS_TARGET_CACHE_PREFIX, "cfclient_instance_metrics_target_cache_"). %% Metrics cache process
 
 
 
