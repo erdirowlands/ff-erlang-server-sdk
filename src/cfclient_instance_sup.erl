@@ -8,7 +8,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/3]).
+-export([start_link/3, child_spec/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -34,6 +34,17 @@
 %% TODO - when streaming is implemented, we'll add its supervisor ref here
 start_link(InstanceSupName, PollSupChildName, MetricsSupChildName) ->
   supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, MetricsSupChildName]).
+
+child_spec(Args) -> child_spec(?MODULE, Args).
+child_spec(Id, Args) ->
+  #{
+    id => Id,
+    start => {?MODULE, start_link, Args},
+    restart => permanent,
+    shutdown => 5000, % shutdown timea
+    type => supervisor,
+    modules => [?MODULE]
+  }.
 
 %%%===================================================================
 %%% Supervisor callbacks
