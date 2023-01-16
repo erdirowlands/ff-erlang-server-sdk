@@ -8,7 +8,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/5, child_spec/2]).
+-export([start_link/7, child_spec/2]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -30,10 +30,16 @@
 %%%===================================================================
 
 %% @doc Starts the supervisor
--spec(start_link(InstanceSupName :: atom(), FeatureCacheName :: atom(), PollSupChildName :: atom(), MetricsSupChildName :: atom(), IsAnalyticsEnabled :: boolean()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+-spec(start_link(InstanceSupName :: atom(),
+    FeatureCacheName :: atom(),
+    PollSupChildName :: atom(),
+    MetricsSupChildName :: atom(),
+    MetricsEvaluationCacheName :: atom(),
+    MetricsTargetCacheName :: atom(),
+    IsAnalyticsEnabled :: boolean()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 %% TODO - when streaming is implemented, we'll add its supervisor ref here
-start_link(InstanceSupName, FeatureCacheName, PollSupChildName, MetricsSupChildName, IsAnalyticsEnabled) ->
-  supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, FeatureCacheName, MetricsSupChildName, IsAnalyticsEnabled]).
+start_link(InstanceSupName, FeatureCacheName, PollSupChildName, MetricsSupChildName, MetricsEvaluationCacheName, MetricsTargetCacheName, IsAnalyticsEnabled) ->
+  supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, FeatureCacheName, MetricsSupChildName, MetricsEvaluationCacheName, MetricsTargetCacheName, IsAnalyticsEnabled]).
 
 child_spec(Id, Args) ->
   #{
@@ -59,7 +65,7 @@ child_spec(Id, Args) ->
     MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
     [ChildSpec :: supervisor:child_spec()]}}
   | ignore | {error, Reason :: term()}).
-init([PollSupChildName, FeatureCacheName, MetricsSupChildName, IsAnalyticsEnabled]) ->
+init([PollSupChildName, FeatureCacheName, MetricsSupChildName, MetricsEvaluationCacheName, MetricsTargetCacheName, IsAnalyticsEnabled]) ->
   MaxRestarts = 1,
   MaxSecondsBetweenRestarts = 5,
   SupFlags = #{
@@ -68,21 +74,27 @@ init([PollSupChildName, FeatureCacheName, MetricsSupChildName, IsAnalyticsEnable
     period => MaxSecondsBetweenRestarts},
   case IsAnalyticsEnabled of
     true ->
-      {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, FeatureCacheName, analytics_enabled)}};
+      {ok, {SupFlags, instance_children(FeatureCacheName, PollSupChildName, MetricsSupChildName, MetricsEvaluationCacheName, MetricsTargetCacheName, analytics_enabled)}};
     false ->
-      {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, FeatureCacheName, analytics_disabled)}}
+      {ok, {SupFlags, instance_children(FeatureCacheName, PollSupChildName, MetricsSupChildName, MetricsEvaluationCacheName, MetricsTargetCacheName, analytics_disabled)}}
   end.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-instance_children(FeatureCacheName, PollSupName, MetricsSupName, analytics_enabled) ->
+instance_children(FeatureCacheName, PollSupName, MetricsSupName, MetricsEvaluationCacheName, MetricsTargetCacheName, analytics_enabled) ->
+  %% Feature Cache
   CacheWorkerChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [FeatureCacheName], worker),
+  %% Polling
   PollSupChild = ?INSTANCE_CHILD(?POLL_SUPERVISOR, ?POLL_SUPERVISOR, [PollSupName], supervisor),
-  MetricsSupChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [MetricsSupName], supervisor),
+  %% Metrics
+  MetricsSupChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [MetricsSupName, MetricsEvaluationCacheName, MetricsTargetCacheName], supervisor),
   [CacheWorkerChild, PollSupChild, MetricsSupChild];
-instance_children(FeatureCacheName, PollSupName,  _,  analytics_disabled) ->
+%% Don't start a metrics supervisor if analytics is disabled
+instance_children(FeatureCacheName, PollSupName,  _, _, _, analytics_disabled) ->
+  %% Feature Cache
   CacheWorkerChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [FeatureCacheName], worker),
+  %% Polling
   PollSupChild = ?INSTANCE_CHILD(?POLL_SUPERVISOR, ?POLL_SUPERVISOR, [PollSupName], supervisor),
   [CacheWorkerChild, PollSupChild].
