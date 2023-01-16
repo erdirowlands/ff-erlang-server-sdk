@@ -23,7 +23,7 @@
 %% @doc Starts the supervisor
 -spec(start_link(PollSupName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link(PollSupName) ->
-  supervisor:start_link({local, PollSupName}, ?MODULE, [?POLL_SERVER]).
+  supervisor:start_link({local, PollSupName}, ?MODULE, []).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -52,7 +52,7 @@ init([]) ->
     period => MaxSecondsBetweenRestarts},
 
   ChildSpec = #{
-    %% `id` key is ignored if provided in a simple_one_for_one strategy so don't provide it
+    id => ?POLL_SERVER, %% `id` key is ignored if provided in a simple_one_for_one strategy
     start => {?POLL_SERVER, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args for unique instances.
     restart => permanent,
     shutdown => 5000,
