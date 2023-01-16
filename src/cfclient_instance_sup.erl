@@ -91,11 +91,11 @@ init([InstanceName, FeatureCacheName, PollSupChildName, MetricsSupChildName, IsA
 %%%===================================================================
 
 instance_children(InstanceName, FeatureCacheName, PollSupName, MetricsSupName, analytics_enabled) ->
-  CacheWorkerChild = ?INSTANCE_CHILD(FeatureCacheName, ?FEATURE_CACHE_MODULE, [FeatureCacheName], worker),
+  CacheWorkerChild = ?INSTANCE_CHILD(FeatureCacheName, ?FEATURE_CACHE_MODULE, [?FEATURE_CACHE_ARGS], worker),
   PollSupChild = ?INSTANCE_CHILD(PollSupName, ?POLL_SUPERVISOR, [InstanceName], supervisor),
   MetricsSupChild = ?INSTANCE_CHILD(MetricsSupName, ?METRICS_SUP_MODULE, [MetricsSupName], supervisor),
   [CacheWorkerChild, PollSupChild, MetricsSupChild];
 instance_children(InstanceName, FeatureCacheName, PollSupName, _, analytics_disabled) ->
-  CacheWorkerChild = ?INSTANCE_CHILD(FeatureCacheName, ?METRICS_SUP_MODULE, [FeatureCacheName], worker),
+  CacheWorkerChild = ?INSTANCE_CHILD(FeatureCacheName, ?FEATURE_CACHE_MODULE, [?FEATURE_CACHE_ARGS], worker),
   PollSupChild = ?INSTANCE_CHILD(PollSupName, ?POLL_SUPERVISOR, [InstanceName], supervisor),
   [CacheWorkerChild, PollSupChild].

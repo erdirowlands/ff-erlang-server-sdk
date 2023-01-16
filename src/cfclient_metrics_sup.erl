@@ -22,9 +22,14 @@
     type => Type,
     modules => [Module]}).
 
-%% Gen server modules
+%% Server module
 -define(METRICS_SERVER_MODULE, cfclient_metrics_server).
+
+%% Cache worker module
 -define(LRU_MODULE, lru).
+
+%% Cache args
+-define(CACHE_ARGS, {max_size, 32000000}).
 
 %% Worker children references
 -define(METRICS_SERVER_PREFIX, "cfclient_metrics_server_").
@@ -77,8 +82,8 @@ init([InstanceName]) ->
 metrics_children(InstanceName) ->
   {EvaluationCacheName, TargetCacheName, ServerName} = get_refs_from_instance(InstanceName),
 
-  MetricsEvaluationCacheChild = ?METRICS_CHILD(EvaluationCacheName, ?LRU_MODULE, [EvaluationCacheName], worker),
-  MetricsTargetCacheChild = ?METRICS_CHILD(TargetCacheName, ?LRU_MODULE, [TargetCacheName], worker),
+  MetricsEvaluationCacheChild = ?METRICS_CHILD(EvaluationCacheName, ?LRU_MODULE, [?CACHE_ARGS], worker),
+  MetricsTargetCacheChild = ?METRICS_CHILD(TargetCacheName, ?LRU_MODULE, [?CACHE_ARGS], worker),
   MetricsServerChild = ?METRICS_CHILD(ServerName, ?METRICS_SERVER_MODULE, [ServerName, InstanceName], worker),
   [MetricsEvaluationCacheChild, MetricsTargetCacheChild, MetricsServerChild].
 
