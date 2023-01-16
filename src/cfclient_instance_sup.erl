@@ -26,8 +26,11 @@
 -define(METRICS_SUP_MODULE, cfclient_metrics_sup).
 -define(POLL_SUPERVISOR, cfclient_poll_server_sup).
 
-%% Worker module
+%% Cache worker module
 -define(FEATURE_CACHE_MODULE, lru).
+
+%% Cache args
+-define(FEATURE_CACHE_ARGS, {max_size, 32000000}).
 
 
 %%%===================================================================
