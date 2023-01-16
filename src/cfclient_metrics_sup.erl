@@ -66,6 +66,9 @@ init([MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName]
 %%% Internal functions
 %%%===================================================================
 
+%% TODO - this generates a child spec. I think for ID (first arg in METRICS_CHILD) we can safely just use the name
+%% of the module (even for multi-instance usecase). It's when the children are started up that the instance specific
+%% name is used (which is what we do).
 metrics_children(MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName) ->
   MetricsCacheChild = ?METRICS_CHILD(MetricsCacheName, ?LRU_MODULE, [MetricsCacheName], worker),
   MetricsTargetCacheChild = ?METRICS_CHILD(MetricsTargetCacheName, ?LRU_MODULE, [MetricsTargetCacheName], worker),
