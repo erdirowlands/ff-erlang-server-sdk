@@ -8,7 +8,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/3, child_spec/1]).
+-export([start_link/4, child_spec/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -30,10 +30,10 @@
 %%%===================================================================
 
 %% @doc Starts the supervisor
--spec(start_link(InstanceSupName :: atom(), PollSupChildName :: atom(), MetricsSupChildName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+-spec(start_link(InstanceSupName :: atom(), PollSupChildName :: atom(), MetricsSupChildName :: atom(), IsAnalyticsEnabled :: boolean()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 %% TODO - when streaming is implemented, we'll add its supervisor ref here
-start_link(InstanceSupName, PollSupChildName, MetricsSupChildName) ->
-  supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, MetricsSupChildName]).
+start_link(InstanceSupName, PollSupChildName, MetricsSupChildName, IsAnalyticsEnabled) ->
+  supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, MetricsSupChildName, IsAnalyticsEnabled]).
 
 child_spec(Args) -> child_spec(?MODULE, Args).
 child_spec(Id, Args) ->
@@ -60,15 +60,19 @@ child_spec(Id, Args) ->
     MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
     [ChildSpec :: supervisor:child_spec()]}}
   | ignore | {error, Reason :: term()}).
-init([PollSupChildName, MetricsSupChildName, LRUCacheWorkerName]) ->
+init([PollSupChildName, MetricsSupChildName, LRUCacheWorkerName, IsAnalyticsEnabled]) ->
   MaxRestarts = 1,
   MaxSecondsBetweenRestarts = 5,
   SupFlags = #{
     strategy => one_for_one,
     intensity => MaxRestarts,
     period => MaxSecondsBetweenRestarts},
-
-  {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, LRUCacheWorkerName)}}.
+  case IsAnalyticsEnabled of
+    true ->
+      {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, LRUCacheWorkerName)}};
+    false ->
+      {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, LRUCacheWorkerName)}}
+  end.
 
 %%%===================================================================
 %%% Internal functions

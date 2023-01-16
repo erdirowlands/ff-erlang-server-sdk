@@ -40,7 +40,7 @@ start(ApiKey, InstanceName, Options) ->
   case connect(ApiKey, InstanceName) of
     {ok, AuthToken} ->
       parse_project_data(InstanceName, AuthToken),
-      start_children(InstanceName);
+      start_instance(InstanceName);
     {not_ok, Error} ->
       {not_ok, Error}
   end.
@@ -87,8 +87,16 @@ stop() ->
   unset_application_environment(application:get_all_env(cfclient)).
 
 %% Internal functions
--spec start_children(InstanceName :: atom()) -> ok.
-start_children(InstanceName) ->
+-spec start_instance(InstanceName :: atom()) -> ok.
+start_instance(InstanceName) ->
+  %% Get instance specific child references
+  InstanceSupName = get_ref_from_instance(instance, InstanceName),
+  PollSupName = get_ref_from_instance(instance_poll_server, InstanceName),
+  MetricsSupName = get_ref_from_instance(instance_metrics, InstanceName),
+
+  %% Check if analytics is enabled and pass to the instance supervisor so it knows whether to start a metrics child or not.
+  IsAnalyticsEnabled = cfclient_config:get_instance_config_value(InstanceName, analytics_enabled),
+
   %% Start Feature/Group Cache
   {ok, CachePID} = supervisor:start_child(?PARENTSUP, {lru, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
   cfclient_cache_repository:set_pid(CachePID),
@@ -132,7 +140,7 @@ get_ref_from_instance(instance, InstanceName) ->
   list_to_atom(?INSTANCE_PREFIX ++ atom_to_list(InstanceName));
 get_ref_from_instance(instance_poll_server, InstanceName) ->
   list_to_atom(?POLL_SERVER_PREFIX ++ atom_to_list(InstanceName));
-get_ref_from_instance(instance_metrics_server, InstanceName) ->
+get_ref_from_instance(instance_metrics, InstanceName) ->
   list_to_atom(?METRICS_SERVER_PREFIX ++ atom_to_list(InstanceName)).
 
 -spec stop_children(Children :: list()) -> ok.
