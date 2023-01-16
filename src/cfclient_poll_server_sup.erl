@@ -53,7 +53,7 @@ init([]) ->
 
   ChildSpec = #{
     %% `id` key is ignored if provided in a simple_one_for_one strategy so don't provide it
-    start => {?POLL_SERVER, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args
+    start => {?POLL_SERVER, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args for unique instances.
     restart => permanent,
     shutdown => 5000,
     type => worker,
