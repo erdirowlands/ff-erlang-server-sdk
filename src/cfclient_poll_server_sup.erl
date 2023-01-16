@@ -12,7 +12,7 @@
 %% Supervisor callbacks
 -export([init/1]).
 
-%% The poll server worker to supervise
+%% Poll server module - polling is simple_one_for_one so we can use a constant reference across instances
 -define(POLL_SERVER, cfclient_poll_server).
 
 %%%===================================================================
