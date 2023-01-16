@@ -7,26 +7,23 @@
 
 -behaviour(gen_server).
 
--export([start_link/0]).
+-export([start_link/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
-%% TODO DELETE - we don't want a constant reference for this due to multiple client instances
--define(SERVER, ?MODULE).
+-record(cfclient_poll_server_state, {poll_interval}).
 
--record(cfclient_poll_server_state, {}).
+start_link(InstanceName) ->
+  logger:info("Starting poll server for instance: ~p", [InstanceName]),
+  gen_server:start_link(?MODULE, [InstanceName], []).
 
-start_link() ->
-  %% TODO - pass unique instance name here
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-
-init([]) ->
-  logger:info("Starting poll server"),
-  PollInterval = cfclient_config:get_instance_config_value(poll_interval),
+init([InstanceName]) ->
+  PollInterval = cfclient_config:get_instance_config_value(InstanceName, poll_interval),
   cfclient:retrieve_flags(),
   cfclient:retrieve_segments(),
   erlang:send_after(PollInterval, self(), trigger),
-  {ok, #cfclient_poll_server_state{}}.
+  State = #cfclient_poll_server_state{poll_interval = PollInterval},
+  {ok, State}.
 
 handle_call(_Request, _From, State = #cfclient_poll_server_state{}) ->
   {reply, ok, State}.
@@ -34,9 +31,8 @@ handle_call(_Request, _From, State = #cfclient_poll_server_state{}) ->
 handle_cast(_Request, State = #cfclient_poll_server_state{}) ->
   {noreply, State}.
 
-handle_info(_Info, State = #cfclient_poll_server_state{}) ->
+handle_info(_Info, State = #cfclient_poll_server_state{poll_interval = PollInterval}) ->
   logger:info("Triggering poll server"),
-  PollInterval = cfclient_config:get_instance_config_value(poll_interval),
   cfclient:retrieve_flags(),
   cfclient:retrieve_segments(),
   erlang:send_after(PollInterval, self(), trigger),
