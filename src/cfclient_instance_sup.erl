@@ -8,7 +8,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/4, child_spec/1]).
+-export([start_link/4, child_spec/2]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -35,7 +35,6 @@
 start_link(InstanceSupName, PollSupChildName, MetricsSupChildName, IsAnalyticsEnabled) ->
   supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, MetricsSupChildName, IsAnalyticsEnabled]).
 
-child_spec(Args) -> child_spec(?MODULE, Args).
 child_spec(Id, Args) ->
   #{
     id => Id,

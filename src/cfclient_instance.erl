@@ -9,11 +9,14 @@
 %% API
 -export([start/3, stop/0, register_instance_project_data/3, get_instance_project_data/1, get_instance_auth_token/1]).
 
+%% We just use an empty map if there are no user supplied options
 -define(DEFAULT_OPTIONS, #{}).
--define(PARENTSUP, cfclient_sup).
 
 %% Prefix for instance process
 -define(INSTANCE_PREFIX, "cfclient_instance_").
+
+% CFClient top level supervisor reference
+-define(TOP_LEVEL_SUP, cfclient_sup).
 
 %% Prefixes for instance child processes
 -define(POLL_SERVER_PREFIX, "cfclient_instance_poll_server_").
@@ -21,8 +24,6 @@
 -define(FEATURE_CACHE_PREFIX, "cfclient_instance_feature_cache_"). %% Flag/Group cache process
 -define(METRICS_EVALUATION_CACHE_PREFIX, "cfclient_instance_metrics_evaluation_cache_"). %% Metrics cache process
 -define(METRICS_TARGET_CACHE_PREFIX, "cfclient_instance_metrics_target_cache_"). %% Metrics cache process
-
-
 
 %% Child references
 -define(POLL_SERVER_CHILD_REF, cfclient_poll_server).
@@ -82,7 +83,7 @@ parse_project_data(InstanceName, JwtToken) ->
 -spec stop() -> ok | {error, not_found, term()}.
 stop() ->
   logger:debug("Stopping client"),
-  stop_children(supervisor:which_children(?PARENTSUP)),
+  stop_children(supervisor:which_children(?TOP_LEVEL_SUP)),
   %% TODO - to support multiple Client instances, we'll need to parameterize the application name here.
   unset_application_environment(application:get_all_env(cfclient)).
 
@@ -97,23 +98,36 @@ start_instance(InstanceName) ->
   %% Check if analytics is enabled and pass to the instance supervisor so it knows whether to start a metrics child or not.
   IsAnalyticsEnabled = cfclient_config:get_instance_config_value(InstanceName, analytics_enabled),
 
+  %% Start instance specific supervisor
+  {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, cfclient_instance_sup:child_spec(InstanceSupName, [InstanceSupName, PollSupName, MetricsSupName, IsAnalyticsEnabled]))
+
+  %% Polling uses simple_one_for_one so we start it dynamically.
+  %% TODO - when streaming is implemented, we'll want to check if it is enabled and only start polling if streaming isn't enabled.
+  %% We'll also want to code a fallback strategy to use polling if streaming fails, but that likely won't be coded in this module.
+
+
+
   %% Start Feature/Group Cache
-  {ok, CachePID} = supervisor:start_child(?PARENTSUP, {lru, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
+  {ok, CachePID} = supervisor:start_child(?TOP_LEVEL_SUP, {lru, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
   cfclient_cache_repository:set_pid(CachePID),
   case cfclient_config:get_instance_config_value(InstanceName, analytics_enabled) of
     %% If analytics are enabled then we need to start the metrics gen server along with two separate caches for metrics and metrics targets.
     true ->
       %% Start metrics and metrics target caches
-      {ok, MetricsCachePID} = supervisor:start_child(?PARENTSUP, {?METRICS_CACHE_CHILD_REF, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
+      {ok, MetricsCachePID} = supervisor:start_child(?TOP_LEVEL_SUP, {?METRICS_CACHE_CHILD_REF, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
       cfclient_metrics_server:set_metrics_cache_pid(MetricsCachePID),
-      {ok, MetricsTargetCachePID} = supervisor:start_child(?PARENTSUP, {?METRIC_TARGET_CACHE_CHILD_REF, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
+      {ok, MetricsTargetCachePID} = supervisor:start_child(?TOP_LEVEL_SUP, {?METRIC_TARGET_CACHE_CHILD_REF, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
       cfclient_metrics_server:set_metrics_target_cache_pid(MetricsTargetCachePID),
       %% Start metrics gen server
-      {ok, _} = supervisor:start_child(?PARENTSUP, {?METRICS_GEN_SERVER_CHILD_REF, {cfclient_metrics_server, start_link, []}, permanent, 5000, worker, ['cfclient_metrics_server']});
+      {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, {?METRICS_GEN_SERVER_CHILD_REF, {cfclient_metrics_server, start_link, []}, permanent, 5000, worker, ['cfclient_metrics_server']});
     false -> ok
   end,
   %% Start Poll Processor
-  {ok, _} = supervisor:start_child(?PARENTSUP, {?POLL_SERVER_CHILD_REF, {cfclient_poll_server, start_link, []}, permanent, 5000, worker, ['cfclient_poll_server']}),
+  {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, {?POLL_SERVER_CHILD_REF, {cfclient_poll_server, start_link, []}, permanent, 5000, worker, ['cfclient_poll_server']}),
+  ok.
+
+start_poller(PollSupName, InstanceName) ->
+  {ok, _Pid} = ldclient_updater:start(UpdateSupName, UpdateWorkerModule, Tag),
   ok.
 
 register_instance_project_data(InstanceName, ProjectData, AuthToken) when is_map(ProjectData), is_binary(AuthToken) ->
@@ -145,8 +159,8 @@ get_ref_from_instance(instance_metrics, InstanceName) ->
 
 -spec stop_children(Children :: list()) -> ok.
 stop_children([{Id, _, _, _} | Tail]) ->
-  supervisor:terminate_child(?PARENTSUP, Id),
-  supervisor:delete_child(?PARENTSUP, Id),
+  supervisor:terminate_child(?TOP_LEVEL_SUP, Id),
+  supervisor:delete_child(?TOP_LEVEL_SUP, Id),
   stop_children(Tail);
 stop_children([]) -> ok.
 
