@@ -8,7 +8,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/3]).
+-export([start_link/5]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -30,10 +30,10 @@
 %%%===================================================================
 
 %% @doc Starts the supervisor
--spec(start_link(MetricsSupName :: atom(), PollSupChildName :: atom(), MetricsSupChildName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+-spec(start_link(MetricsSupName :: atom(), MetricsCacheName :: atom(), MetricsTargetCacheName :: atom(), MetricsServerName :: atom(), InstanceName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 %% TODO - when streaming is implemented, we'll add its supervisor ref here
-start_link(MetricsSupName, PollSupChildName, MetricsSupChildName) ->
-  supervisor:start_link({local, MetricsSupName}, ?MODULE, [PollSupChildName, MetricsSupChildName]).
+start_link(MetricsSupName, MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName) ->
+  supervisor:start_link({local, MetricsSupName}, ?MODULE, [MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName]).
 
 %%%===================================================================
 %%% Supervisor callbacks
