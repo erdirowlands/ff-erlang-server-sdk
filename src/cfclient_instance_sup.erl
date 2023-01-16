@@ -63,8 +63,8 @@ init([PollSupChildName, MetricsSupChildName, LRUCacheWorkerName]) ->
 %%% Internal functions
 %%%===================================================================
 
-instance_children(PollSupName, MetricsSupName, LRUCacheWorkerName) ->
+instance_children(PollSupName, MetricsSupName, LRUCacheName) ->
+  LRUWorkerChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [LRUCacheName], worker),
   PollSupChild = ?INSTANCE_CHILD(?POLL_SUPERVISOR, ?POLL_SUPERVISOR, [PollSupName], supervisor),
   MetricsSupChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [MetricsSupName], supervisor),
-  LRUWorkerChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [MetricsSupName], worker),
   [PollSupChild, MetricsSupChild, LRUWorkerChild].

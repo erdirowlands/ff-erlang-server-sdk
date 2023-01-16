@@ -59,7 +59,6 @@ init([MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName]
     strategy => rest_for_one,
     intensity => MaxRestarts,
     period => MaxSecondsBetweenRestarts},
-  %% We want to start these children in a specific order. Basically caches before server.
   {ok, {SupFlags, metrics_children(MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName)}}.
 
 %%%===================================================================
