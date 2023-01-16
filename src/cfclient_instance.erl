@@ -95,7 +95,7 @@ start_instance(InstanceName) ->
   IsAnalyticsEnabled = cfclient_config:get_instance_config_value(InstanceName, analytics_enabled),
 
   %% Start instance specific supervisor
-  {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, cfclient_instance_sup:child_spec(InstanceSupName, [InstanceSupName, FeatureCacheName, PollSupName, MetricsSupName, IsAnalyticsEnabled])),
+  {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, cfclient_instance_sup:child_spec(InstanceSupName, [InstanceSupName, FeatureCacheName, PollSupName, MetricsSupName, IsAnalyticsEnabled, InstanceName])),
 
   %% The module cfclient_poll_server_sup uses simple_one_for_one, so we start it dynamically.
   %% TODO - when streaming is implemented, we'll want to check if it is enabled and only start polling if streaming isn't enabled.
