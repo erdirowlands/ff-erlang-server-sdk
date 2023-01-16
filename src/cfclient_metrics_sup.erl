@@ -25,6 +25,11 @@
 -define(METRICS_SERVER_MODULE, cfclient_metrics_server).
 -define(LRU_MODULE, lru).
 
+%% Worker children references
+-define(METRICS_SERVER_PREFIX, "cfclient_metrics_server_").
+-define(METRICS_EVALUATION_CACHE_PREFIX, "cfclient_metrics_evaluation_cache_").
+-define(METRICS_TARGET_CACHE_PREFIX, "cfclient_metrics_target_cache_").
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================

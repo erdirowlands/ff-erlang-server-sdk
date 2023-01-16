@@ -23,9 +23,9 @@
 -define(METRICS_SUP_PREFIX, "cfclient_instance_metrics_supervisor_").
 
 %% Prefixes for instance child workers
--define(FEATURE_CACHE_PREFIX, "cfclient_instance_feature_cache_worker").
--define(METRICS_EVALUATION_CACHE_PREFIX, "cfclient_instance_metrics_evaluation_cache_worker").
--define(METRICS_TARGET_CACHE_PREFIX, "cfclient_instance_metrics_target_cache_worker"). 
+-define(FEATURE_CACHE_PREFIX, "cfclient_instance_feature_cache_").
+-define(METRICS_EVALUATION_CACHE_PREFIX, "cfclient_instance_metrics_evaluation_cache_").
+-define(METRICS_TARGET_CACHE_PREFIX, "cfclient_instance_metrics_target_cache_").
 
 -spec start(InstanceName :: string(), ApiKey :: string(), Options :: map()) -> ok | not_ok.
 start(ApiKey, InstanceName, Options) ->
