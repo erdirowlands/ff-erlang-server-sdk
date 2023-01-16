@@ -30,8 +30,7 @@
 -define(FEATURE_CACHE_MODULE, lru).
 
 %% Cache args
--define(FEATURE_CACHE_ARGS, {max_size, 32000000}).
-
+-define(FEATURE_CACHE_SIZE, 32000000).
 
 %%%===================================================================
 %%% API functions
@@ -91,11 +90,11 @@ init([InstanceName, FeatureCacheName, PollSupChildName, MetricsSupChildName, IsA
 %%%===================================================================
 
 instance_children(InstanceName, FeatureCacheName, PollSupName, MetricsSupName, analytics_enabled) ->
-  CacheWorkerChild = ?INSTANCE_CHILD(FeatureCacheName, ?FEATURE_CACHE_MODULE, [?FEATURE_CACHE_ARGS], worker),
+  CacheWorkerChild = ?INSTANCE_CHILD(FeatureCacheName, ?FEATURE_CACHE_MODULE, [{local, FeatureCacheName}, ?FEATURE_CACHE_SIZE, []], worker),
   PollSupChild = ?INSTANCE_CHILD(PollSupName, ?POLL_SUPERVISOR, [InstanceName], supervisor),
   MetricsSupChild = ?INSTANCE_CHILD(MetricsSupName, ?METRICS_SUP_MODULE, [MetricsSupName], supervisor),
   [CacheWorkerChild, PollSupChild, MetricsSupChild];
 instance_children(InstanceName, FeatureCacheName, PollSupName, _, analytics_disabled) ->
-  CacheWorkerChild = ?INSTANCE_CHILD(FeatureCacheName, ?FEATURE_CACHE_MODULE, [?FEATURE_CACHE_ARGS], worker),
+  CacheWorkerChild = ?INSTANCE_CHILD(FeatureCacheName, ?FEATURE_CACHE_MODULE, [{local, FeatureCacheName}, ?FEATURE_CACHE_SIZE, []], worker),
   PollSupChild = ?INSTANCE_CHILD(PollSupName, ?POLL_SUPERVISOR, [InstanceName], supervisor),
   [CacheWorkerChild, PollSupChild].

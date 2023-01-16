@@ -15,8 +15,8 @@
 %% Prefix for instance process
 -define(INSTANCE_PREFIX, "cfclient_instance_").
 
-% CFClient top level supervisor reference
--define(TOP_LEVEL_SUP, cfclient_sup).
+% Top level supervisor module
+-define(TOP_LEVEL_SUP, cfclient_sup).%% Cache worker module
 
 %% Prefixes for instance child supervisors
 -define(POLL_SUP_PREFIX, "cfclient_instance_poll_supervisor_").
