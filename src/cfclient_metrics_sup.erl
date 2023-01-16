@@ -13,14 +13,8 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--define(METRICS_CHILD(Id, Module, Args, Type),
-  #{
-    id => Id,
-    start => {Module, start_link, Args},
-    restart => permanent,
-    shutdown => 5000,
-    type => Type,
-    modules => [Module]}).
+%% Must use old tuple syntax as the lru module's internal functions don't support map syntax
+-define(METRICS_CHILD(Id, Module, Args, Type), {Id, {Module, start_link, Args}, permanent, 5000, Type, [Module]}).
 
 %% Server module
 -define(METRICS_SERVER_MODULE, cfclient_metrics_server).
@@ -82,8 +76,8 @@ init([InstanceName]) ->
 metrics_children(InstanceName) ->
   {EvaluationCacheName, TargetCacheName, ServerName} = get_refs_from_instance(InstanceName),
 
-  MetricsEvaluationCacheChild = ?METRICS_CHILD(EvaluationCacheName, ?LRU_MODULE, [{local, EvaluationCacheName}, ?CACHE_SIZE, []], worker),
-  MetricsTargetCacheChild = ?METRICS_CHILD(TargetCacheName, ?LRU_MODULE, [{local, TargetCacheName}, ?CACHE_SIZE, []], worker),
+  MetricsEvaluationCacheChild = ?METRICS_CHILD(EvaluationCacheName, ?LRU_MODULE, [{local, EvaluationCacheName}, {max_size,?CACHE_SIZE}, []], worker),
+  MetricsTargetCacheChild = ?METRICS_CHILD(TargetCacheName, ?LRU_MODULE, [{local, TargetCacheName}, {max_size,?CACHE_SIZE}, []], worker),
   MetricsServerChild = ?METRICS_CHILD(ServerName, ?METRICS_SERVER_MODULE, [ServerName, InstanceName], worker),
   [MetricsEvaluationCacheChild, MetricsTargetCacheChild, MetricsServerChild].
 
