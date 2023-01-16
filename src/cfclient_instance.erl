@@ -85,16 +85,22 @@ stop() ->
 %% Internal functions
 -spec start_instance(InstanceName :: atom()) -> ok.
 start_instance(InstanceName) ->
-  %% Get instance specific child references
+  %% Get instance child references
   InstanceSupName = get_ref_from_instance(instance, InstanceName),
   FeatureCacheName = get_ref_from_instance(instance_cache, InstanceName),
   PollSupName = get_ref_from_instance(instance_poll_server, InstanceName),
   MetricsSupName = get_ref_from_instance(instance_metrics, InstanceName),
 
+  %% Get worker references for the instance metrics supervisor
+  %% Metrics requires two separate caches, one for evaluations and one for targets
+  MetricsEvaluationCacheName = get_ref_from_instance(instance_metrics_evaluation, InstanceName),
+  MetricsTargetCacheName = get_ref_from_instance(instance_metrics_target, InstanceName),
+
+
   %% Check if analytics is enabled and pass to the instance supervisor so it knows whether to start a metrics child or not.
   IsAnalyticsEnabled = cfclient_config:get_instance_config_value(InstanceName, analytics_enabled),
 
-  %% Start instance specific supervisor
+  %% Start instance specific supervisor and children
   {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, cfclient_instance_sup:child_spec(InstanceSupName, [InstanceSupName, FeatureCacheName, PollSupName, MetricsSupName, IsAnalyticsEnabled])),
 
   %% The module cfclient_poll_server_sup uses simple_one_for_one, so we start it dynamically.
@@ -130,7 +136,11 @@ get_ref_from_instance(instance_cache, InstanceName) ->
 get_ref_from_instance(instance_poll_server, InstanceName) ->
   list_to_atom(?POLL_SUP_PREFIX ++ atom_to_list(InstanceName));
 get_ref_from_instance(instance_metrics, InstanceName) ->
-  list_to_atom(?METRICS_SUP_PREFIX ++ atom_to_list(InstanceName)).
+  list_to_atom(?METRICS_SUP_PREFIX ++ atom_to_list(InstanceName));
+get_ref_from_instance(instance_metrics_evaluation, InstanceName) ->
+  list_to_atom(?METRICS_EVALUATION_CACHE_PREFIX ++ atom_to_list(InstanceName));
+get_ref_from_instance(instance_metrics_target, InstanceName) ->
+  list_to_atom(?METRICS_TARGET_CACHE_PREFIX++ atom_to_list(InstanceName)).
 
 -spec stop_children(Children :: list()) -> ok.
 stop_children([{Id, _, _, _} | Tail]) ->
