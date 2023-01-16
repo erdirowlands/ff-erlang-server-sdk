@@ -8,7 +8,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/4, child_spec/2]).
+-export([start_link/5, child_spec/2]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -30,10 +30,10 @@
 %%%===================================================================
 
 %% @doc Starts the supervisor
--spec(start_link(InstanceSupName :: atom(), PollSupChildName :: atom(), MetricsSupChildName :: atom(), IsAnalyticsEnabled :: boolean()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+-spec(start_link(InstanceSupName :: atom(), FeatureCacheName :: atom(), PollSupChildName :: atom(), MetricsSupChildName :: atom(), IsAnalyticsEnabled :: boolean()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 %% TODO - when streaming is implemented, we'll add its supervisor ref here
-start_link(InstanceSupName, PollSupChildName, MetricsSupChildName, IsAnalyticsEnabled) ->
-  supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, MetricsSupChildName, IsAnalyticsEnabled]).
+start_link(InstanceSupName, FeatureCacheName, PollSupChildName, MetricsSupChildName, IsAnalyticsEnabled) ->
+  supervisor:start_link({local, InstanceSupName}, ?MODULE, [PollSupChildName, FeatureCacheName, MetricsSupChildName, IsAnalyticsEnabled]).
 
 child_spec(Id, Args) ->
   #{
@@ -59,7 +59,7 @@ child_spec(Id, Args) ->
     MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
     [ChildSpec :: supervisor:child_spec()]}}
   | ignore | {error, Reason :: term()}).
-init([PollSupChildName, MetricsSupChildName, LRUCacheWorkerName, IsAnalyticsEnabled]) ->
+init([PollSupChildName, FeatureCacheName, MetricsSupChildName, IsAnalyticsEnabled]) ->
   MaxRestarts = 1,
   MaxSecondsBetweenRestarts = 5,
   SupFlags = #{
@@ -68,17 +68,21 @@ init([PollSupChildName, MetricsSupChildName, LRUCacheWorkerName, IsAnalyticsEnab
     period => MaxSecondsBetweenRestarts},
   case IsAnalyticsEnabled of
     true ->
-      {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, LRUCacheWorkerName)}};
+      {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, FeatureCacheName, analytics_enabled)}};
     false ->
-      {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, LRUCacheWorkerName)}}
+      {ok, {SupFlags, instance_children(PollSupChildName, MetricsSupChildName, FeatureCacheName, analytics_disabled)}}
   end.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-instance_children(PollSupName, MetricsSupName, LRUCacheName) ->
-  LRUWorkerChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [LRUCacheName], worker),
+instance_children(FeatureCacheName, PollSupName, MetricsSupName, analytics_enabled) ->
+  CacheWorkerChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [FeatureCacheName], worker),
   PollSupChild = ?INSTANCE_CHILD(?POLL_SUPERVISOR, ?POLL_SUPERVISOR, [PollSupName], supervisor),
   MetricsSupChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [MetricsSupName], supervisor),
-  [PollSupChild, MetricsSupChild, LRUWorkerChild].
+  [CacheWorkerChild, PollSupChild, MetricsSupChild];
+instance_children(FeatureCacheName, PollSupName,  _,  analytics_disabled) ->
+  CacheWorkerChild = ?INSTANCE_CHILD(?METRICS_SUPERVISOR, ?METRICS_SUPERVISOR, [FeatureCacheName], worker),
+  PollSupChild = ?INSTANCE_CHILD(?POLL_SUPERVISOR, ?POLL_SUPERVISOR, [PollSupName], supervisor),
+  [CacheWorkerChild, PollSupChild].

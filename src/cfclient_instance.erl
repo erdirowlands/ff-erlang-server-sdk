@@ -18,19 +18,14 @@
 % CFClient top level supervisor reference
 -define(TOP_LEVEL_SUP, cfclient_sup).
 
-%% Prefixes for instance child processes
--define(POLL_SERVER_PREFIX, "cfclient_instance_poll_server_").
--define(METRICS_SERVER_PREFIX, "cfclient_instance_metrics_server_").
--define(FEATURE_CACHE_PREFIX, "cfclient_instance_feature_cache_"). %% Flag/Group cache process
--define(METRICS_EVALUATION_CACHE_PREFIX, "cfclient_instance_metrics_evaluation_cache_"). %% Metrics cache process
--define(METRICS_TARGET_CACHE_PREFIX, "cfclient_instance_metrics_target_cache_"). %% Metrics cache process
+%% Prefixes for instance child supervisors
+-define(POLL_SUP_PREFIX, "cfclient_instance_poll_supervisor_").
+-define(METRICS_SUP_PREFIX, "cfclient_instance_metrics_supervisor_").
 
-%% Child references
--define(POLL_SERVER_CHILD_REF, cfclient_poll_server).
--define(LRU_CACHE_CHILD_REF, cfclient_lru).
--define(METRICS_GEN_SERVER_CHILD_REF, cfclient_metrics_server).
--define(METRICS_CACHE_CHILD_REF, cfclient_metrics_server_lru).
--define(METRIC_TARGET_CACHE_CHILD_REF, cfclient_metrics_server_target_lru).
+%% Prefixes for instance child workers
+-define(FEATURE_CACHE_PREFIX, "cfclient_instance_feature_cache_worker").
+-define(METRICS_EVALUATION_CACHE_PREFIX, "cfclient_instance_metrics_evaluation_cache_worker").
+-define(METRICS_TARGET_CACHE_PREFIX, "cfclient_instance_metrics_target_cache_worker"). 
 
 -spec start(InstanceName :: string(), ApiKey :: string(), Options :: map()) -> ok | not_ok.
 start(ApiKey, InstanceName, Options) ->
@@ -92,6 +87,7 @@ stop() ->
 start_instance(InstanceName) ->
   %% Get instance specific child references
   InstanceSupName = get_ref_from_instance(instance, InstanceName),
+  FeatureCacheName = get_ref_from_instance(instance_cache, InstanceName),
   PollSupName = get_ref_from_instance(instance_poll_server, InstanceName),
   MetricsSupName = get_ref_from_instance(instance_metrics, InstanceName),
 
@@ -99,35 +95,12 @@ start_instance(InstanceName) ->
   IsAnalyticsEnabled = cfclient_config:get_instance_config_value(InstanceName, analytics_enabled),
 
   %% Start instance specific supervisor
-  {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, cfclient_instance_sup:child_spec(InstanceSupName, [InstanceSupName, PollSupName, MetricsSupName, IsAnalyticsEnabled]))
+  {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, cfclient_instance_sup:child_spec(InstanceSupName, [InstanceSupName, FeatureCacheName, PollSupName, MetricsSupName, IsAnalyticsEnabled])),
 
-  %% Polling uses simple_one_for_one so we start it dynamically.
+  %% The module cfclient_poll_server_sup uses simple_one_for_one, so we start it dynamically.
   %% TODO - when streaming is implemented, we'll want to check if it is enabled and only start polling if streaming isn't enabled.
   %% We'll also want to code a fallback strategy to use polling if streaming fails, but that likely won't be coded in this module.
-
-
-
-  %% Start Feature/Group Cache
-  {ok, CachePID} = supervisor:start_child(?TOP_LEVEL_SUP, {lru, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
-  cfclient_cache_repository:set_pid(CachePID),
-  case cfclient_config:get_instance_config_value(InstanceName, analytics_enabled) of
-    %% If analytics are enabled then we need to start the metrics gen server along with two separate caches for metrics and metrics targets.
-    true ->
-      %% Start metrics and metrics target caches
-      {ok, MetricsCachePID} = supervisor:start_child(?TOP_LEVEL_SUP, {?METRICS_CACHE_CHILD_REF, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
-      cfclient_metrics_server:set_metrics_cache_pid(MetricsCachePID),
-      {ok, MetricsTargetCachePID} = supervisor:start_child(?TOP_LEVEL_SUP, {?METRIC_TARGET_CACHE_CHILD_REF, {lru, start_link, [[{max_size, 32000000}]]}, permanent, 5000, worker, ['lru']}),
-      cfclient_metrics_server:set_metrics_target_cache_pid(MetricsTargetCachePID),
-      %% Start metrics gen server
-      {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, {?METRICS_GEN_SERVER_CHILD_REF, {cfclient_metrics_server, start_link, []}, permanent, 5000, worker, ['cfclient_metrics_server']});
-    false -> ok
-  end,
-  %% Start Poll Processor
-  {ok, _} = supervisor:start_child(?TOP_LEVEL_SUP, {?POLL_SERVER_CHILD_REF, {cfclient_poll_server, start_link, []}, permanent, 5000, worker, ['cfclient_poll_server']}),
-  ok.
-
-start_poller(PollSupName, InstanceName) ->
-  {ok, _Pid} = ldclient_updater:start(UpdateSupName, UpdateWorkerModule, Tag),
+  {ok, _} = supervisor:start_child(PollSupName, [InstanceName]),
   ok.
 
 register_instance_project_data(InstanceName, ProjectData, AuthToken) when is_map(ProjectData), is_binary(AuthToken) ->
@@ -152,10 +125,12 @@ get_instance_auth_token(InstanceName) when is_atom(InstanceName) ->
 
 get_ref_from_instance(instance, InstanceName) ->
   list_to_atom(?INSTANCE_PREFIX ++ atom_to_list(InstanceName));
+get_ref_from_instance(instance_cache, InstanceName) ->
+  list_to_atom(?FEATURE_CACHE_PREFIX ++ atom_to_list(InstanceName));
 get_ref_from_instance(instance_poll_server, InstanceName) ->
-  list_to_atom(?POLL_SERVER_PREFIX ++ atom_to_list(InstanceName));
+  list_to_atom(?POLL_SUP_PREFIX ++ atom_to_list(InstanceName));
 get_ref_from_instance(instance_metrics, InstanceName) ->
-  list_to_atom(?METRICS_SERVER_PREFIX ++ atom_to_list(InstanceName)).
+  list_to_atom(?METRICS_SUP_PREFIX ++ atom_to_list(InstanceName)).
 
 -spec stop_children(Children :: list()) -> ok.
 stop_children([{Id, _, _, _} | Tail]) ->
