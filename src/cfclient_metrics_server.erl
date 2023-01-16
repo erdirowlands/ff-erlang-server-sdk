@@ -6,18 +6,14 @@
 
 -behaviour(gen_server).
 
--export([start_link/1, enqueue_metrics/4, set_metrics_cache_pid/1, set_metrics_target_cache_pid/1]).
+-export([start_link/2, enqueue_metrics/4, set_metrics_cache_pid/1, set_metrics_target_cache_pid/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 -include("cfclient_metrics_attributes.hrl").
 
-%% TODO DELETE - we don't want a constant reference for this due to multiple client instances
--define(SERVER, ?MODULE).
-
 -record(cfclient_metrics_server_state, {analytics_push_interval, metrics_cache_pid, metric_target_cache_pid, instance_name}).
 
-start_link(InstanceName) ->
-  %% TODO - pass unique instance name here
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [InstanceName], []).
+start_link(ServerName, InstanceName) ->
+  gen_server:start_link({local, ServerName}, ?MODULE, [InstanceName], []).
 
 init([InstanceName]) ->
   AnalyticsPushInterval = cfclient_config:get_instance_config_value(InstanceName, analytics_push_interval),

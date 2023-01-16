@@ -2,7 +2,7 @@
 %%% @doc Polling supervisor
 %%% @end
 %%%-------------------------------------------------------------------
--module(cfclient_poll_sup).
+-module(cfclient_poll_server_sup).
 
 -behaviour(supervisor).
 
@@ -43,6 +43,10 @@ init([]) ->
   MaxRestarts = 10,
   MaxSecondsBetweenRestarts = 3600,
   SupFlags = #{
+    %% We use simple_one_for_one here which means the poll server child won't be started automatically when
+    %% this supervisor starts. This allows us to dynamically start and stop the poll server when required.
+    %% For example, if streaming is enabled we won't start the poll server. Or, if streaming fails, we can
+    %% fallback to use polling while streaming recovers.
     strategy => simple_one_for_one,
     intensity => MaxRestarts,
     period => MaxSecondsBetweenRestarts},

@@ -22,7 +22,7 @@
     type => Type,
     modules => [Module]}).
 
--define(POLL_SUPERVISOR, cfclient_poll_sup).
+-define(POLL_SUPERVISOR, cfclient_poll_server_sup).
 -define(METRICS_SUPERVISOR, cfclient_metrics_sup).
 
 %%%===================================================================

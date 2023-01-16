@@ -1,5 +1,6 @@
 %%%-------------------------------------------------------------------
-%%% @doc Metrics supervisor
+%%% @doc CFClient metrics supervisor
+%%%
 %%% @end
 %%%-------------------------------------------------------------------
 -module(cfclient_metrics_sup).
@@ -7,23 +8,32 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/1]).
+-export([start_link/3]).
 
 %% Supervisor callbacks
 -export([init/1]).
 
-%% The metrics server worker to supervise
--define(METRICS_SERVER, cfclient_metrics_server).
+-define(METRICS_CHILD(Id, Module, Args, Type),
+  #{
+    id => Id,
+    start => {Module, start_link, Args},
+    restart => permanent,
+    shutdown => 5000,
+    type => Type,
+    modules => [Module]}).
+
+-define(METRICS_SERVER_MODULE, cfclient_metrics_server).
+-define(LRU_MODULE, lru).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
-
 %% @doc Starts the supervisor
--spec(start_link(MetricsSupName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(MetricsSupName) ->
-  supervisor:start_link({local, MetricsSupName}, ?MODULE, [?METRICS_SERVER]).
+-spec(start_link(MetricsSupName :: atom(), PollSupChildName :: atom(), MetricsSupChildName :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+%% TODO - when streaming is implemented, we'll add its supervisor ref here
+start_link(MetricsSupName, PollSupChildName, MetricsSupChildName) ->
+  supervisor:start_link({local, MetricsSupName}, ?MODULE, [PollSupChildName, MetricsSupChildName]).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -39,21 +49,25 @@ start_link(MetricsSupName) ->
     MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
     [ChildSpec :: supervisor:child_spec()]}}
   | ignore | {error, Reason :: term()}).
-init([]) ->
-  MaxRestarts = 10,
-  MaxSecondsBetweenRestarts = 3600,
+init([MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName]) ->
+  MaxRestarts = 1,
+  MaxSecondsBetweenRestarts = 5,
   SupFlags = #{
-    strategy => simple_one_for_one,
+    %% Using rest for one which should allow us to preserve metrics if the metrics server dies as it is started last.
+    %% But, if metrics cache dies then we'll lose all state for that interval and the poll server will
+    %% correctly be started last (so it won't try to write to non-existent caches).
+    strategy => rest_for_one,
     intensity => MaxRestarts,
     period => MaxSecondsBetweenRestarts},
 
-  %% TODO - make sure that when start_child/2 is called in the instance module, that the INSTANCE NAME is provided!!
-  ChildSpec = #{
-    %% `id` key is ignored if provided in a simple_one_for_one strategy so don't provide it
-    start => {?METRICS_SERVER, start_link, []}, %% The args list is empty here, but when start_child/2 is called this list will be appended with the required args
-    restart => permanent,
-    shutdown => 5000,
-    type => worker,
-    modules => [?METRICS_SERVER]},
+  {ok, {SupFlags, metrics_children(MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName)}}.
 
-  {ok, {SupFlags, [ChildSpec]}}.
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+metrics_children(MetricsCacheName, MetricsTargetCacheName, MetricsServerName, InstanceName) ->
+  MetricsCacheChild = ?METRICS_CHILD(MetricsCacheName, ?LRU_MODULE, [MetricsCacheName], worker),
+  MetricsTargetCacheChild = ?METRICS_CHILD(MetricsTargetCacheName, ?LRU_MODULE, [MetricsTargetCacheName], worker),
+  MetricsServerChild = ?METRICS_CHILD(MetricsServerName, ?METRICS_SERVER_MODULE, [MetricsServerName, InstanceName], worker),
+  [MetricsCacheChild, MetricsTargetCacheChild, MetricsServerChild].
