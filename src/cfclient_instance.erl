@@ -96,6 +96,7 @@ start_instance(InstanceName) ->
   MetricsEvaluationCacheName = get_ref_from_instance(instance_metrics_evaluation, InstanceName),
   MetricsTargetCacheName = get_ref_from_instance(instance_metrics_target, InstanceName),
 
+
   %% Check if analytics is enabled and pass to the instance supervisor so it knows whether to start a metrics child or not.
   IsAnalyticsEnabled = cfclient_config:get_instance_config_value(InstanceName, analytics_enabled),
 
