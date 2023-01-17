@@ -29,8 +29,8 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Request, State) ->
   {noreply, State}.
 
-handle_info(_Info, State = #cfclient_metrics_server_state{analytics_push_interval = AnalyticsPushInterval, metrics_evaluation_cache_name = MetricsCachePID, metric_target_cache_name = MetricTargetCachePID, instance_name = InstanceName}) ->
-  metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID, InstanceName),
+handle_info(_Info, State = #cfclient_metrics_server_state{analytics_push_interval = AnalyticsPushInterval, metrics_evaluation_cache_name = MetricsEvaluationCacheName, metric_target_cache_name = MetricTargetCacheName, instance_name = InstanceName}) ->
+  metrics_interval(AnalyticsPushInterval, MetricsEvaluationCacheName, MetricTargetCacheName, InstanceName),
   {noreply, State}.
 
 metrics_interval(AnalyticsPushInterval, MetricsEvaluationCacheName, MetricsTargetCacheName, InstanceName) ->
@@ -68,9 +68,9 @@ post_metrics(MetricsData, MetricTargetData, InstanceName) ->
       {not_ok, Response}
   end.
 
-enqueue_metrics(FlagIdentifier, Target, VariationIdentifier, VariationValue) ->
-  set_to_metrics_cache(FlagIdentifier, Target, VariationIdentifier, VariationValue, evaluation_cache_name_to_pid()),
-  set_to_metric_target_cache(Target, target_cache_name_to_pid()).
+enqueue_metrics(FlagIdentifier, Target, VariationIdentifier, VariationValue, InstanceName) ->
+  set_to_metrics_cache(FlagIdentifier, Target, VariationIdentifier, VariationValue, get_metrics_evaluation_cache_name(InstanceName)),
+  set_to_metric_target_cache(Target, get_metrics_target_cache_name(InstanceName)).
 
 -spec create_metrics_data(MetricsCacheKeys :: list(), MetricsCachePID :: pid(), Timestamp :: integer(), Accu :: list()) -> list().
 create_metrics_data([UniqueEvaluation | Tail], MetricsCachePID, Timestamp, Accu) ->
