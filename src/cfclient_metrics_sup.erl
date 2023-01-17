@@ -82,8 +82,8 @@ init([InstanceName]) ->
 metrics_children(InstanceName) ->
   {EvaluationCacheName, TargetCacheName, ServerName} = get_refs_from_instance(InstanceName),
 
-  MetricsEvaluationCacheChild = ?METRICS_CHILD(EvaluationCacheName, ?LRU_MODULE, [[{local, EvaluationCacheName}], ?CACHE_SIZE, []], worker),
-  MetricsTargetCacheChild = ?METRICS_CHILD(TargetCacheName, ?LRU_MODULE, [{local, TargetCacheName}, ?CACHE_SIZE, []], worker),
+  MetricsEvaluationCacheChild = ?METRICS_CHILD(EvaluationCacheName, ?LRU_MODULE, [[{local, EvaluationCacheName}, {max_size, ?CACHE_SIZE}, []]], worker),
+  MetricsTargetCacheChild = ?METRICS_CHILD(TargetCacheName, ?LRU_MODULE, [[{local, TargetCacheName}, {max_size, ?CACHE_SIZE}, []]], worker),
   MetricsServerChild = ?METRICS_CHILD(ServerName, ?METRICS_SERVER_MODULE, [ServerName, InstanceName], worker),
   [MetricsEvaluationCacheChild, MetricsTargetCacheChild, MetricsServerChild].
 
