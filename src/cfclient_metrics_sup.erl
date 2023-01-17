@@ -84,7 +84,7 @@ metrics_children(InstanceName) ->
 
   MetricsEvaluationCacheChild = ?METRICS_CHILD(EvaluationCacheName, ?LRU_MODULE, [[{local, EvaluationCacheName}, {max_size, ?CACHE_SIZE}, []]], worker),
   MetricsTargetCacheChild = ?METRICS_CHILD(TargetCacheName, ?LRU_MODULE, [[{local, TargetCacheName}, {max_size, ?CACHE_SIZE}, []]], worker),
-  MetricsServerChild = ?METRICS_CHILD(ServerName, ?METRICS_SERVER_MODULE, [ServerName, InstanceName], worker),
+  MetricsServerChild = ?METRICS_CHILD(ServerName, ?METRICS_SERVER_MODULE, [ServerName, EvaluationCacheName, TargetCacheName, InstanceName], worker),
   [MetricsEvaluationCacheChild, MetricsTargetCacheChild, MetricsServerChild].
 
 get_refs_from_instance(InstanceName) ->
