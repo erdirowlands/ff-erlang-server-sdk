@@ -6,7 +6,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/2, enqueue_metrics/4]).
+-export([start_link/4, enqueue_metrics/5]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 -include("cfclient_metrics_attributes.hrl").
 
