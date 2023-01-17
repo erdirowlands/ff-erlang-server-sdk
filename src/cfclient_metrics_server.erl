@@ -6,7 +6,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/2, enqueue_metrics/4, set_metrics_cache_pid/1, set_metrics_target_cache_pid/1]).
+-export([start_link/2, enqueue_metrics/4, set_evaluation_cache_pid/1, set_target_cache_pid/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 -include("cfclient_metrics_attributes.hrl").
 
@@ -17,8 +17,8 @@ start_link(ServerName, InstanceName) ->
 
 init([InstanceName]) ->
   AnalyticsPushInterval = cfclient_config:get_instance_config_value(InstanceName, analytics_push_interval),
-  MetricsCachePID = get_metrics_cache_pid(),
-  MetricTargetCachePID = get_metric_target_cache_pid(),
+  MetricsCachePID = evaluation_cache_name_to_pid(),
+  MetricTargetCachePID = target_cache_name_to_pid(),
   State = #cfclient_metrics_server_state{analytics_push_interval = AnalyticsPushInterval, metrics_cache_pid = MetricsCachePID, metric_target_cache_pid = MetricTargetCachePID, instance_name = InstanceName},
   metrics_interval(AnalyticsPushInterval, MetricsCachePID, MetricTargetCachePID, InstanceName),
   {ok, State}.
@@ -69,8 +69,8 @@ post_metrics(MetricsData, MetricTargetData, InstanceName) ->
   end.
 
 enqueue_metrics(FlagIdentifier, Target, VariationIdentifier, VariationValue) ->
-  set_to_metrics_cache(FlagIdentifier, Target, VariationIdentifier, VariationValue, get_metrics_cache_pid()),
-  set_to_metric_target_cache(Target, get_metric_target_cache_pid()).
+  set_to_metrics_cache(FlagIdentifier, Target, VariationIdentifier, VariationValue, evaluation_cache_name_to_pid()),
+  set_to_metric_target_cache(Target, target_cache_name_to_pid()).
 
 -spec create_metrics_data(MetricsCacheKeys :: list(), MetricsCachePID :: pid(), Timestamp :: integer(), Accu :: list()) -> list().
 create_metrics_data([UniqueEvaluation | Tail], MetricsCachePID, Timestamp, Accu) ->
@@ -201,22 +201,27 @@ set_to_metric_target_cache(Target, MetricsTargetCachePID) ->
   end.
 
 
--spec set_metrics_cache_pid(MetricsCachePID :: pid()) -> ok.
-set_metrics_cache_pid(MetricsCachePID) ->
-  application:set_env(cfclient, metrics_cache_pid, MetricsCachePID).
+-spec set_metrics_evaluation_cache_pid(EvaluationCachePID :: pid(), InstanceName :: atom()) -> ok.
+set_metrics_evaluation_cache_pid(EvaluationCachePID, InstanceName) ->
+  Instances = cfclient_config:get_all_instances(),
+  NewInstanceMap = maps:put(metrics_evaluation_cache_pid, EvaluationCachePID, maps:get(InstanceName, Instances)),
+  NewInstances = Instances#{InstanceName => NewInstanceMap},
+  application:set_env(cfclient, instances, NewInstances).
 
--spec set_metrics_target_cache_pid(MetricsTargetCachePID :: pid()) -> ok.
-set_metrics_target_cache_pid(MetricsTargetCachePID) ->
-  application:set_env(cfclient, metrics_target_cache_pid, MetricsTargetCachePID).
+-spec set_metrics_target_cache_pid(TargetCachePID :: pid(), InstanceName :: atom()) -> ok.
+set_metrics_target_cache_pid(TargetCachePID, InstanceName) ->
+  Instances = cfclient_config:get_all_instances(),
+  NewInstanceMap = maps:put(metrics_target_cache_pid, TargetCachePID, maps:get(InstanceName, Instances)),
+  NewInstances = Instances#{InstanceName => NewInstanceMap},
+  application:set_env(cfclient, instances, NewInstances).
 
-
--spec get_metrics_cache_pid() -> pid().
-get_metrics_cache_pid() ->
+-spec evaluation_cache_name_to_pid(InstanceName :: atom()) -> pid().
+evaluation_cache_name_to_pid(InstanceName) ->
   {ok, MetricsCachePID} = application:get_env(cfclient, metrics_cache_pid),
   MetricsCachePID.
 
--spec get_metric_target_cache_pid() -> pid().
-get_metric_target_cache_pid() ->
+-spec target_cache_name_to_pid(InstanceName :: atom()) -> pid().
+target_cache_name_to_pid(InstanceName) ->
   {ok, MetricsTargetCachePID} = application:get_env(cfclient, metrics_target_cache_pid),
   MetricsTargetCachePID.
 
